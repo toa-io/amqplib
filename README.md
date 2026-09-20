@@ -57,8 +57,6 @@ What differs:
 - It is an ES module, and needs Node.js 24. `require()` loads it as it loads any ES module.
 - Only the two entry points can be imported. The original's `lib/` modules were never part of its
   interface, and there is nothing at those paths.
-- A frame larger than the negotiated `frameMax` closes the connection, where the original would
-  go on reading it.
 - `publish` also returns `false` once 4 MB are waiting to be written, whatever the channel's
   `highWaterMark`, and `drain` follows as it does otherwise.
 

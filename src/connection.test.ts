@@ -137,18 +137,6 @@ describe('receiving', () => {
     assert.deepEqual(received[0]!.properties.headers!.bytes, Buffer.from('b'))
     assert.equal(received[0]!.fields.routingKey, 'key')
   })
-
-  it('refuses a frame larger than what was negotiated', async () => {
-    const opened = await open({}, { frameMax: 4096 })
-    const failed = new Promise<Error>(resolve => opened.connection.once('error', resolve))
-    const frame = Buffer.alloc(16)
-
-    frame[0] = FRAME_METHOD
-    frame.writeUInt32BE(4096, 3)
-    opened.connection.receive(frame, 0, frame.length)
-
-    assert.match((await failed).message, /Frame size exceeds frame max/)
-  })
 })
 
 describe('sending', () => {

@@ -521,8 +521,6 @@ export class Connection extends EventEmitter {
         const channel = (buffer[offset + 1]! << 8) | buffer[offset + 2]!
         const size = buffer.readUInt32BE(offset + 3)
 
-        if (size + FRAME_OVERHEAD > this.frameMax) throw new Error('Frame size exceeds frame max')
-
         if (type === FRAME_BODY) {
           this.expectBody(channel, size)
           offset += FRAME_PREFIX
@@ -575,8 +573,6 @@ export class Connection extends EventEmitter {
     const type = carry[0]!
     const channel = (carry[1]! << 8) | carry[2]!
     const size = carry.readUInt32BE(3)
-
-    if (size + FRAME_OVERHEAD > this.frameMax) throw new Error('Frame size exceeds frame max')
 
     if (type === FRAME_BODY) {
       this.carried = 0

@@ -115,6 +115,26 @@ describe('messages', () => {
       })
     })
 
+  it('takes in headers larger than the frame size it asked for', async () => {
+    // The limit is on the frames that content is cut into. RabbitMQ sends the properties of a
+    // message in one frame whatever was negotiated, and they were published by someone else.
+    const publisher = await open()
+    const consumer = await open(`${URL}${URL.includes('?') ? '&' : '?'}frameMax=8192`)
+    const channel = await consumer.createChannel()
+    const { queue } = await channel.assertQueue('', { exclusive: true })
+    const received = new Promise<Message>(resolve => channel.consume(queue, m => resolve(m!)))
+    const large = 'h'.repeat(20_000)
+
+    ;(await publisher.createChannel()).sendToQueue(queue, randomBytes(20_000), {
+      headers: { large },
+    })
+
+    const message = await received
+
+    assert.equal(message.properties.headers!.large, large)
+    assert.equal(message.content.length, 20_000)
+  })
+
   it('keeps every message as it was while others arrive', async () => {
     const connection = await open()
     const channel = await connection.createConfirmChannel()
