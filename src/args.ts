@@ -2,71 +2,15 @@
 // same method fields made of them. Each function here makes the fields of one operation.
 
 import type { Table } from './codec.ts'
+import type { Options } from './properties.ts'
 
-export interface AssertQueueOptions {
-  exclusive?: boolean
-  durable?: boolean
-  autoDelete?: boolean
-  arguments?: Table
-  messageTtl?: number
-  expires?: number
-  deadLetterExchange?: string
-  deadLetterRoutingKey?: string
-  maxLength?: number
-  maxPriority?: number
-  overflow?: string
-  queueMode?: string
-}
-
-export interface DeleteQueueOptions {
-  ifUnused?: boolean
-  ifEmpty?: boolean
-}
-
-export interface AssertExchangeOptions {
-  durable?: boolean
-  internal?: boolean
-  autoDelete?: boolean
-  alternateExchange?: string
-  arguments?: Table
-}
-
-export interface DeleteExchangeOptions {
-  ifUnused?: boolean
-}
-
-export interface PublishOptions {
-  expiration?: string | number
-  userId?: string
-  CC?: string | string[]
-  BCC?: string | string[]
-  mandatory?: boolean
-  persistent?: boolean
-  deliveryMode?: boolean | number
-  contentType?: string
-  contentEncoding?: string
-  headers?: Table
-  priority?: number
-  correlationId?: string
-  replyTo?: string
-  messageId?: string
-  timestamp?: number
-  type?: string
-  appId?: string
-}
-
-export interface ConsumeOptions {
-  consumerTag?: string
-  noLocal?: boolean
-  noAck?: boolean
-  exclusive?: boolean
-  priority?: number
-  arguments?: Table
-}
-
-export interface GetOptions {
-  noAck?: boolean
-}
+export type AssertQueueOptions = Options.AssertQueue
+export type DeleteQueueOptions = Options.DeleteQueue
+export type AssertExchangeOptions = Options.AssertExchange
+export type DeleteExchangeOptions = Options.DeleteExchange
+export type PublishOptions = Options.Publish
+export type ConsumeOptions = Options.Consume
+export type GetOptions = Options.Get
 
 const EMPTY = Object.freeze({})
 const NO_HEADERS: Table = Object.freeze({})

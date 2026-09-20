@@ -9,7 +9,7 @@ import {
   recoveryEnabled,
   splitConnectionOptions,
   type RecoveringPromiseModel,
-  type RecoveryOptions,
+  type RecoveryOptions as Recovery,
 } from './recovery.ts'
 
 export type ConnectOptions = SocketOptions & { recovery?: boolean | RecoveryOptions }
@@ -42,12 +42,10 @@ export function connect(
 
 export { credentials, IllegalOperationError }
 export { ChannelModel, Channel, ConfirmChannel } from './channel_model.ts'
-export type { RecoveringPromiseModel, RecoveryOptions } from './recovery.ts'
-export type { Message, Consumer, ConfirmCallback } from './channel.ts'
-export type { Connection, ChannelOptions } from './connection.ts'
-export type { SocketOptions, UrlObject } from './connect.ts'
+export type RecoveryOptions = Recovery<ChannelModel>
+export type { RecoveringPromiseModel as RecoveringChannelModel } from './recovery.ts'
+export type { Connection } from './connection.ts'
 export type { Credentials } from './credentials.ts'
-export type { Table } from './codec.ts'
-export type * from './args.ts'
+export type * from './properties.ts'
 
 export default { connect, credentials, IllegalOperationError }

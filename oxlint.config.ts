@@ -11,7 +11,14 @@ export default defineConfig({
     es2024: true,
     node: true,
   },
-  ignorePatterns: ['node_modules/**', 'coverage/**', 'dist/**', 'compat/test/**', 'src/defs.ts'],
+  ignorePatterns: [
+    'node_modules/**',
+    'coverage/**',
+    'dist/**',
+    'compat/test/**',
+    'compat/types/**',
+    'src/defs.ts',
+  ],
   rules: {
     eqeqeq: 'error',
     curly: ['error', 'multi'],
@@ -98,7 +105,12 @@ export default defineConfig({
     'typescript/consistent-type-imports': 'error',
     'typescript/no-inferrable-types': 'error',
     'typescript/no-empty-interface': 'warn',
-    'typescript/no-explicit-any': 'warn',
+    // the interface is the original library's, and that is what its types say
+    'typescript/no-explicit-any': 'off',
+    'no-underscore-dangle': [
+      'warn',
+      { allow: ['_rpc', '_updateSecret', '_read', '_write', '_writev', '_final'] },
+    ],
     'typescript/prefer-as-const': 'error',
     'typescript/prefer-optional-chain': 'warn',
     'typescript/prefer-nullish-coalescing': 'warn',

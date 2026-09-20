@@ -14,8 +14,13 @@ import { inspect } from './format.ts'
 import { ModelChannel } from './model.ts'
 import type { Table } from './codec.ts'
 import type { ChannelOptions, Connection } from './connection.ts'
+import type { GetMessage } from './properties.ts'
 
-type Callback<T = any> = (error: Error | null, value?: T) => void
+type Callback<T = any> = (error: any, value: T) => void
+
+/** A callback the way it is called when there is nothing but an error to call it with. */
+const fail = (cb: Callback | undefined, error: unknown): void =>
+  (cb as ((e: unknown) => void) | undefined)?.(error)
 
 export class CallbackModel extends EventEmitter {
   public readonly connection: Connection
@@ -29,12 +34,12 @@ export class CallbackModel extends EventEmitter {
       connection.on(event, (...args: unknown[]) => this.emit(event, ...args))
   }
 
-  public close(cb?: (error: Error | null) => void): void {
+  public close(cb?: (error: any) => void): void {
     this.connection.close(cb)
   }
 
-  public updateSecret(newSecret: Buffer, reason: string, cb: () => void): void {
-    this.connection._updateSecret(newSecret, reason, cb)
+  public updateSecret(newSecret: Buffer, reason: string, cb?: (error: any) => void): void {
+    this.connection._updateSecret(newSecret, reason, () => cb?.(null))
   }
 
   public createChannel(
@@ -52,12 +57,17 @@ export class CallbackModel extends EventEmitter {
 
     ch.open(err => {
       if (err === null) cb?.(null, ch)
-      else cb?.(err)
+      else fail(cb, err)
     })
 
     return ch
   }
 
+  public createConfirmChannel(cb: Callback<ConfirmChannel>): ConfirmChannel
+  public createConfirmChannel(
+    options: ChannelOptions | undefined,
+    cb: Callback<ConfirmChannel>
+  ): ConfirmChannel
   public createConfirmChannel(
     options?: ChannelOptions | Callback<ConfirmChannel>,
     cb?: Callback<ConfirmChannel>
@@ -72,11 +82,11 @@ export class CallbackModel extends EventEmitter {
     ch.setOptions(options as ChannelOptions)
 
     ch.open(err => {
-      if (err !== null) return cb?.(err)
+      if (err !== null) return fail(cb, err)
 
       ch.rpc(defs.ConfirmSelect, { nowait: false }, defs.ConfirmSelectOk, error => {
         if (error === null) cb?.(null, ch)
-        else cb?.(error)
+        else fail(cb, error)
       })
     })
 
@@ -85,12 +95,12 @@ export class CallbackModel extends EventEmitter {
 }
 
 /** Leaves the value out when there is an error, and stands in for a callback not given. */
-function wrap<T>(cb?: Callback<T>): Callback<T> {
+function wrap<T>(cb?: Callback<T> | null): (error: Error | null, value?: T) => void {
   if (cb === undefined || cb === null) return () => undefined
 
   return (error, value) => {
-    if (error === null) cb(null, value)
-    else cb(error)
+    if (error === null) cb(null, value as T)
+    else fail(cb, error)
   }
 }
 
@@ -107,13 +117,13 @@ export class Channel extends ModelChannel {
     try {
       this.allocate()
     } catch (error) {
-      return cb(error as Error)
+      return fail(cb, error)
     }
 
     return this.rpc(defs.ChannelOpen, { outOfBand: '' }, defs.ChannelOpenOk, cb)
   }
 
-  public close(cb?: (error: Error | null) => void): void {
+  public close(cb?: (error: any) => void): void {
     return this.closeBecause('Goodbye', defs.constants.REPLY_SUCCESS, () => cb?.(null))
   }
 
@@ -268,7 +278,7 @@ export class Channel extends ModelChannel {
   public get(
     queue: string,
     options?: Args.GetOptions | null,
-    cb0?: Callback<Message | false>
+    cb0?: Callback<GetMessage | false>
   ): this {
     const cb = wrap(cb0)
 
@@ -278,7 +288,8 @@ export class Channel extends ModelChannel {
       if (error !== null) return cb(convertCloseFrameToError(defs.BasicGet, error))
 
       if (frame!.id === defs.BasicGetEmpty) cb(null, false)
-      else if (frame!.id === defs.BasicGetOk) this.take(frame!.fields!, m => cb(null, m))
+      else if (frame!.id === defs.BasicGetOk)
+        this.take(frame!.fields!, m => cb(null, m as GetMessage))
       else cb(new Error(`Unexpected response to BasicGet: ${inspect(frame!)}`))
     })
 
@@ -348,10 +359,10 @@ export class ConfirmChannel extends Channel {
     return this.publish('', queue, content, options, cb)
   }
 
-  public waitForConfirms(k: (error?: Error) => void): Promise<void> {
+  public waitForConfirms(k?: (error?: Error) => void): Promise<void> {
     return Promise.all(awaitConfirms(this.unconfirmed)).then(
-      () => k(),
-      error => k(error)
+      () => k?.(),
+      error => k?.(error)
     )
   }
 }

@@ -4,6 +4,7 @@ import { EventEmitter } from 'node:events'
 import * as Args from './args.ts'
 import {
   convertCloseFrameToError,
+  type Confirm,
   type ConfirmCallback,
   type Consumer,
   type Message,
@@ -13,6 +14,7 @@ import { inspect } from './format.ts'
 import { ModelChannel } from './model.ts'
 import type { Table } from './codec.ts'
 import type { ChannelOptions, Connection } from './connection.ts'
+import type { GetMessage, Replies } from './properties.ts'
 
 export class ChannelModel extends EventEmitter {
   public readonly connection: Connection
@@ -83,26 +85,31 @@ export class Channel extends ModelChannel {
   public assertQueue(
     queue?: string,
     options?: Args.AssertQueueOptions
-  ): Promise<defs.QueueDeclareOkFields> {
+  ): Promise<Replies.AssertQueue> {
     return this.rpc(defs.QueueDeclare, Args.assertQueue(queue, options), defs.QueueDeclareOk)
   }
 
-  public checkQueue(queue: string): Promise<defs.QueueDeclareOkFields> {
+  public checkQueue(queue: string): Promise<Replies.AssertQueue> {
     return this.rpc(defs.QueueDeclare, Args.checkQueue(queue), defs.QueueDeclareOk)
   }
 
   public deleteQueue(
     queue: string,
     options?: Args.DeleteQueueOptions
-  ): Promise<defs.QueueDeleteOkFields> {
+  ): Promise<Replies.DeleteQueue> {
     return this.rpc(defs.QueueDelete, Args.deleteQueue(queue, options), defs.QueueDeleteOk)
   }
 
-  public purgeQueue(queue: string): Promise<defs.QueuePurgeOkFields> {
+  public purgeQueue(queue: string): Promise<Replies.PurgeQueue> {
     return this.rpc(defs.QueuePurge, Args.purgeQueue(queue), defs.QueuePurgeOk)
   }
 
-  public bindQueue(queue: string, source: string, pattern: string, argt?: Table): Promise<object> {
+  public bindQueue(
+    queue: string,
+    source: string,
+    pattern: string,
+    argt?: Table
+  ): Promise<Replies.Empty> {
     return this.rpc(defs.QueueBind, Args.bindQueue(queue, source, pattern, argt), defs.QueueBindOk)
   }
 
@@ -111,7 +118,7 @@ export class Channel extends ModelChannel {
     source: string,
     pattern: string,
     argt?: Table
-  ): Promise<object> {
+  ): Promise<Replies.Empty> {
     return this.rpc(
       defs.QueueUnbind,
       Args.unbindQueue(queue, source, pattern, argt),
@@ -123,7 +130,7 @@ export class Channel extends ModelChannel {
     exchange: string,
     type: string,
     options?: Args.AssertExchangeOptions
-  ): Promise<{ exchange: string }> {
+  ): Promise<Replies.AssertExchange> {
     await this.rpc(
       defs.ExchangeDeclare,
       Args.assertExchange(exchange, type, options),
@@ -133,11 +140,14 @@ export class Channel extends ModelChannel {
     return { exchange }
   }
 
-  public checkExchange(exchange: string): Promise<object> {
+  public checkExchange(exchange: string): Promise<Replies.Empty> {
     return this.rpc(defs.ExchangeDeclare, Args.checkExchange(exchange), defs.ExchangeDeclareOk)
   }
 
-  public deleteExchange(name: string, options?: Args.DeleteExchangeOptions): Promise<object> {
+  public deleteExchange(
+    name: string,
+    options?: Args.DeleteExchangeOptions
+  ): Promise<Replies.Empty> {
     return this.rpc(defs.ExchangeDelete, Args.deleteExchange(name, options), defs.ExchangeDeleteOk)
   }
 
@@ -146,7 +156,7 @@ export class Channel extends ModelChannel {
     source: string,
     pattern: string,
     argt?: Table
-  ): Promise<object> {
+  ): Promise<Replies.Empty> {
     return this.rpc(
       defs.ExchangeBind,
       Args.bindExchange(dest, source, pattern, argt),
@@ -159,7 +169,7 @@ export class Channel extends ModelChannel {
     source: string,
     pattern: string,
     argt?: Table
-  ): Promise<object> {
+  ): Promise<Replies.Empty> {
     return this.rpc(
       defs.ExchangeUnbind,
       Args.unbindExchange(dest, source, pattern, argt),
@@ -171,7 +181,7 @@ export class Channel extends ModelChannel {
     queue: string,
     callback: Consumer,
     options?: Args.ConsumeOptions
-  ): Promise<defs.BasicConsumeOkFields> {
+  ): Promise<Replies.Consume> {
     return new Promise((resolve, reject) => {
       this._rpc(defs.BasicConsume, Args.consume(queue, options), defs.BasicConsumeOk, (err, ok) => {
         if (err !== null) return reject(err)
@@ -184,7 +194,7 @@ export class Channel extends ModelChannel {
     })
   }
 
-  public async cancel(consumerTag: string): Promise<defs.BasicCancelOkFields> {
+  public async cancel(consumerTag: string): Promise<Replies.Empty> {
     const fields = await this.rpc(defs.BasicCancel, Args.cancel(consumerTag), defs.BasicCancelOk)
 
     this.unregisterConsumer(consumerTag)
@@ -192,7 +202,7 @@ export class Channel extends ModelChannel {
     return fields
   }
 
-  public get(queue: string, options?: Args.GetOptions): Promise<Message | false> {
+  public get(queue: string, options?: Args.GetOptions): Promise<GetMessage | false> {
     return new Promise((resolve, reject) => {
       this.sendOrEnqueue(defs.BasicGet, Args.get(queue, options), (error, frame) => {
         if (error instanceof Error) return reject(error)
@@ -200,7 +210,8 @@ export class Channel extends ModelChannel {
         if (error !== null) return reject(convertCloseFrameToError(defs.BasicGet, error))
 
         if (frame!.id === defs.BasicGetEmpty) resolve(false)
-        else if (frame!.id === defs.BasicGetOk) this.take(frame!.fields!, resolve)
+        else if (frame!.id === defs.BasicGetOk)
+          this.take(frame!.fields!, resolve as (message: Message) => void)
         else reject(new Error(`Unexpected response to BasicGet: ${inspect(frame!)}`))
       })
     })
@@ -226,15 +237,15 @@ export class Channel extends ModelChannel {
     this.sendImmediately(defs.BasicReject, Args.reject(message.fields.deliveryTag, requeue))
   }
 
-  public recover(): Promise<object> {
+  public recover(): Promise<Replies.Empty> {
     return this.rpc(defs.BasicRecover, Args.recover(), defs.BasicRecoverOk)
   }
 
-  public qos(count?: number, global?: boolean): Promise<object> {
+  public qos(count?: number, global?: boolean): Promise<Replies.Empty> {
     return this.rpc(defs.BasicQos, Args.prefetch(count, global), defs.BasicQosOk)
   }
 
-  public prefetch(count?: number, global?: boolean): Promise<object> {
+  public prefetch(count?: number, global?: boolean): Promise<Replies.Empty> {
     return this.qos(count, global)
   }
 }
@@ -263,7 +274,7 @@ export class ConfirmChannel extends Channel {
     return this.publish('', queue, content, options, cb)
   }
 
-  public waitForConfirms(): Promise<void[]> {
+  public async waitForConfirms(): Promise<void> {
     const { unconfirmed } = this
     const awaiting = awaitConfirms(unconfirmed)
 
@@ -275,12 +286,12 @@ export class ConfirmChannel extends Channel {
         if (cb) cb(closed)
     }
 
-    return Promise.all(awaiting)
+    await Promise.all(awaiting)
   }
 }
 
 /** Puts a promise in front of every callback that is still waiting for its confirm. */
-export function awaitConfirms(unconfirmed: (ConfirmCallback | false | null)[]): Promise<void>[] {
+export function awaitConfirms(unconfirmed: (Confirm | false | null)[]): Promise<void>[] {
   const awaiting: Promise<void>[] = []
 
   unconfirmed.forEach((cb, index) => {

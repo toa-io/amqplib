@@ -9,14 +9,28 @@ import {
   recoveryEnabled,
   splitConnectionOptions,
   type RecoveringCallbackModel,
-  type RecoveryOptions,
+  type RecoveryOptions as Recovery,
 } from './recovery.ts'
 
 export type ConnectOptions = SocketOptions & { recovery?: boolean | RecoveryOptions }
 
 type Callback = (error: Error | null, model?: any) => void
 
+type Opened<T> = (error: any, connection: T) => void
+
 // connect(url, options, callback), connect(url, callback), connect(callback)
+export function connect(callback: Opened<CallbackModel>): void
+export function connect(url: string | UrlObject, callback: Opened<CallbackModel>): void
+export function connect(
+  url: string | UrlObject,
+  options: ConnectOptions & { recovery: true | RecoveryOptions },
+  callback: Opened<RecoveringCallbackModel>
+): RecoveringCallbackModel
+export function connect(
+  url: string | UrlObject,
+  options: ConnectOptions,
+  callback: Opened<CallbackModel>
+): void
 export function connect(
   url: string | UrlObject | Callback | undefined,
   options?: ConnectOptions | Callback,
@@ -54,6 +68,10 @@ export function connect(
 
 export { credentials, IllegalOperationError }
 export { CallbackModel, Channel, ConfirmChannel } from './callback_model.ts'
-export type { RecoveringCallbackModel, RecoveryOptions } from './recovery.ts'
+export type { CallbackModel as Connection } from './callback_model.ts'
+export type RecoveryOptions = Recovery<CallbackModel>
+export type { RecoveringCallbackModel as RecoveringConnection } from './recovery.ts'
+export type { Credentials } from './credentials.ts'
+export type * from './properties.ts'
 
 export default { connect, credentials, IllegalOperationError }

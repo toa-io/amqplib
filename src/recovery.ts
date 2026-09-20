@@ -3,15 +3,21 @@
 // makes what it needs on each new connection.
 
 import { EventEmitter } from 'node:events'
+import type { ChannelOptions } from './properties.ts'
 
-export interface RecoveryOptions {
+type ChannelCallback = (error: any, channel: any) => void
+
+export interface RecoveryOptions<Model = any> {
   enabled?: boolean
   initialDelay?: number
   maxDelay?: number
   factor?: number
   jitter?: number
   maxRetries?: number
-  setup?: ((model: any) => unknown) | ((model: any, done: (error?: unknown) => void) => void) | null
+  setup?:
+    | ((model: Model) => unknown)
+    | ((model: Model, done: (error?: Error) => void) => void)
+    | null
 }
 
 type Recovery = Required<Omit<RecoveryOptions, 'enabled'>>
@@ -434,18 +440,20 @@ export class RecoveringCallbackModel extends EventEmitter {
     return this
   }
 
-  public close(cb?: unknown): this {
+  public close(cb?: (error: any) => void): this {
     makeCallback(this.core.close(), cb)
 
     return this
   }
 
-  public updateSecret(newSecret: Buffer, reason: string, cb?: unknown): this {
+  public updateSecret(newSecret: Buffer, reason: string, cb?: (error: any) => void): this {
     makeCallback(this.core.updateSecret(newSecret, reason), cb)
 
     return this
   }
 
+  public createChannel(cb: ChannelCallback): this
+  public createChannel(options: ChannelOptions | undefined, cb: ChannelCallback): this
   public createChannel(options?: unknown, cb?: unknown): this {
     if (typeof options === 'function') {
       cb = options
@@ -457,6 +465,8 @@ export class RecoveringCallbackModel extends EventEmitter {
     return this
   }
 
+  public createConfirmChannel(cb: ChannelCallback): this
+  public createConfirmChannel(options: ChannelOptions | undefined, cb: ChannelCallback): this
   public createConfirmChannel(options?: unknown, cb?: unknown): this {
     if (typeof options === 'function') {
       cb = options

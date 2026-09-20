@@ -9,7 +9,9 @@ export interface Credentials {
 
 const NUL = String.fromCharCode(0)
 
-export function plain(user: string, passwd: string): Credentials {
+export type Identified = Credentials & { username: string; password: string }
+
+export function plain(user: string, passwd: string): Identified {
   return {
     mechanism: 'PLAIN',
     response: () => Buffer.from(['', user, passwd].join(NUL)),
@@ -18,7 +20,7 @@ export function plain(user: string, passwd: string): Credentials {
   }
 }
 
-export function amqplain(user: string, passwd: string): Credentials {
+export function amqplain(user: string, passwd: string): Identified {
   return {
     mechanism: 'AMQPLAIN',
     response: () => {

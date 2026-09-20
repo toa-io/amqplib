@@ -33,6 +33,9 @@ import {
   type Frame,
 } from './frame.ts'
 import { Heart } from './heartbeat.ts'
+import type { ChannelOptions, ServerProperties } from './properties.ts'
+
+export type { ChannelOptions }
 
 const { constants, FRAME_OVERHEAD, HEADROOM } = defs
 
@@ -90,10 +93,6 @@ export interface OpenOptions {
   [option: string]: unknown
 }
 
-export interface ChannelOptions {
-  highWaterMark?: number
-}
-
 /**
  * An arena and how many stretches of it the socket has not finished writing. While there are
  * any, nothing of the arena is written over.
@@ -117,7 +116,7 @@ export class Connection extends EventEmitter {
   public channelMax = MAX_SHORT
   public heartbeat = 0
   public heartbeater: Heart | null = null
-  public serverProperties: Table | undefined
+  public serverProperties!: ServerProperties
   public expectSocketClose = false
   public blocked = false
   public sentSinceLastCheck = false
@@ -212,10 +211,6 @@ export class Connection extends EventEmitter {
       )
     }
 
-    // `0` means no limit, so whichever of the two sets one wins
-    const negotiate = (server: number, desired: number): number =>
-      server === 0 || desired === 0 ? Math.max(server, desired) : Math.min(server, desired)
-
     const onStart: Handshake = (id, buffer, offset) => {
       if (id !== defs.ConnectionStart) return unexpected(defs.ConnectionStart, id)
 
@@ -227,7 +222,7 @@ export class Connection extends EventEmitter {
           new Error(format('SASL mechanism %s is not provided by the server', allFields.mechanism))
         )
 
-      this.serverProperties = start.serverProperties
+      this.serverProperties = start.serverProperties as ServerProperties
 
       try {
         send(defs.ConnectionStartOk)
@@ -491,8 +486,8 @@ export class Connection extends EventEmitter {
       // what was written before it went wrong is still owed to the server
       if (this.head !== this.tail || this.sealed.length > 0) this.schedule()
 
-      if (this.bail !== null) this.bail(error as Error)
-      else this.emit('frameError', error)
+      if (this.bail === null) this.emit('frameError', error)
+      else this.bail(error as Error)
 
       return
     }
@@ -576,7 +571,7 @@ export class Connection extends EventEmitter {
       if (this.carried < FRAME_PREFIX) return offset
     }
 
-    const carry = this.carry
+    const { carry } = this
     const type = carry[0]!
     const channel = (carry[1]! << 8) | carry[2]!
     const size = carry.readUInt32BE(3)
@@ -669,13 +664,14 @@ export class Connection extends EventEmitter {
   }
 
   private body(buffer: Buffer, start: number, end: number): void {
-    if (this.content !== null) {
-      const content = this.content
+    if (this.content === null) this.bodySink?.onBody(buffer, start, end)
+    else {
+      const { content } = this
 
       buffer.copy(content, content.length - this.bodyLeft, start, end)
 
       if (end - start === this.bodyLeft) this.content = null
-    } else this.bodySink?.onBody(buffer, start, end)
+    }
   }
 
   private sink(channel: number, id: number | undefined): ChannelSink | null {
@@ -810,7 +806,7 @@ export class Connection extends EventEmitter {
   public recvFrame(): Frame | false {
     this.frames ??= []
 
-    const frames = this.frames
+    const { frames } = this
 
     // a content frame is listed once it starts, and is whole once nothing of it is awaited
     while (frames.length === 0 || (frames.length === 1 && this.content !== null)) {
@@ -923,7 +919,7 @@ export class Connection extends EventEmitter {
 
     for (;;)
       try {
-        const arena = this.arena
+        const { arena } = this
 
         let offset = defs.encodeMethod(method, arena, this.tail, channel, fields)
 
@@ -1086,7 +1082,7 @@ export class Connection extends EventEmitter {
 
     if (!pending && this.sealed.length === 0) return
 
-    const stream = this.stream
+    const { stream } = this
 
     if (stream.writableEnded || stream.destroyed) {
       this.head = this.tail
@@ -1133,7 +1129,7 @@ export class Connection extends EventEmitter {
 
   /** Tells the channels that were told to stop that they may go on. */
   private drained(): void {
-    const starved = this.starved
+    const { starved } = this
 
     this.starved = []
 
@@ -1145,6 +1141,10 @@ export class Connection extends EventEmitter {
 
   // endregion
 }
+
+// `0` means no limit, so whichever of the two sets one wins
+const negotiate = (server: number, desired: number): number =>
+  server === 0 || desired === 0 ? Math.max(server, desired) : Math.min(server, desired)
 
 export function isFatalError(error: { code?: number } | undefined): boolean {
   switch (error?.code) {

@@ -6,11 +6,11 @@ function trimStack(stack: string | undefined, lines: number): string | undefined
 export class IllegalOperationError extends Error {
   /** Where the connection or the channel went into the state that forbids the operation. */
   public readonly stackAtStateChange: string | undefined
+  public override name = 'IllegalOperationError' as const
 
   public constructor(message: string, stack?: string) {
     super(message)
 
-    this.name = 'IllegalOperationError'
     this.stackAtStateChange = stack
   }
 }

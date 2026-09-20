@@ -7,5 +7,5 @@ export default defineConfig({
   printWidth: 100,
   trailingComma: 'es5',
   arrowParens: 'avoid',
-  ignorePatterns: ['compat/test/**', 'tools/*.json'],
+  ignorePatterns: ['compat/test/**', 'compat/types/**', 'tools/*.json'],
 })

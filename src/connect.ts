@@ -9,6 +9,7 @@ import { Connection, type OpenOptions } from './connection.ts'
 import * as credentials from './credentials.ts'
 import type { Table } from './codec.ts'
 import type { Credentials } from './credentials.ts'
+import type { Options, SocketOptions } from './properties.ts'
 
 const manifest: { version: string } = JSON.parse(
   readFileSync(new URL('../package.json', import.meta.url), 'utf8')
@@ -20,28 +21,8 @@ const manifest: { version: string } = JSON.parse(
  */
 const READ_BUFFER = 128 * 1024
 
-export interface UrlObject {
-  protocol?: string
-  hostname?: string
-  port?: number
-  username?: string
-  password?: string
-  locale?: string
-  frameMax?: number
-  heartbeat?: number
-  channelMax?: number
-  vhost?: string
-}
-
-export interface SocketOptions {
-  noDelay?: boolean
-  timeout?: number
-  keepAlive?: boolean
-  keepAliveDelay?: number
-  clientProperties?: Table
-  credentials?: Credentials
-  [option: string]: unknown
-}
+export type UrlObject = Options.Connect
+export type { SocketOptions }
 
 const CLIENT_PROPERTIES = {
   product: 'amqplib',

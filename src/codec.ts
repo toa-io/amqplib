@@ -56,7 +56,7 @@ function encodeArray(buffer: Buffer, values: unknown[], offset: number): number 
 
   offset += 4
 
-  for (let i = 0; i < values.length; i++) offset = encodeValue(buffer, values[i], offset)
+  for (const value of values) offset = encodeValue(buffer, value, offset)
 
   if (offset > buffer.length) throw OVERFLOW
 

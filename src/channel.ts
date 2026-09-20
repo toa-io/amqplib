@@ -12,14 +12,11 @@ import { IllegalOperationError, stackCapture } from './error.ts'
 import { closeMessage, inspect, methodName } from './format.ts'
 import type { ChannelOptions, ChannelSink, Connection } from './connection.ts'
 import type { Frame } from './frame.ts'
+import type { ConsumeMessage, Message, Replies } from './properties.ts'
+
+export type { Message }
 
 const { constants } = defs
-
-export interface Message {
-  fields: any
-  properties: defs.BasicPropertiesFields
-  content: Buffer
-}
 
 export interface CloseFrame extends Frame {
   fields: { replyCode: number; replyText: string; classId: number; methodId: number }
@@ -31,7 +28,11 @@ export interface CloseFrame extends Frame {
  */
 export type Reply = (error: Error | CloseFrame | null, frame?: Frame) => void
 
-export type ConfirmCallback = (error: Error | null) => void
+/** Called with `null` once the server has taken the message, or with an error if it has not. */
+export type ConfirmCallback = (error: any, ok: Replies.Empty) => void
+
+/** A confirm callback, the way it is called: with nothing but the error. */
+type Confirm = (error: Error | null) => void
 
 interface Pending {
   method: number
@@ -48,6 +49,7 @@ const BODY = 2
 
 const EMPTY = Buffer.alloc(0)
 
+const failed = (): Error => new Error('Channel ended, no reply will be forthcoming')
 const nacked = (): Error => new Error('message nacked')
 
 export class Channel extends EventEmitter implements ChannelSink {
@@ -62,7 +64,7 @@ export class Channel extends EventEmitter implements ChannelSink {
    * The callbacks of the messages from `lwm` on, in the order they were published. `false` stands
    * for a message published without one, `null` for a message confirmed ahead of its turn.
    */
-  public unconfirmed: (ConfirmCallback | false | null)[] = []
+  public unconfirmed: (Confirm | false | null)[] = []
 
   protected reply: Reply | null = null
   protected pending: Pending[] | null = []
@@ -179,8 +181,6 @@ export class Channel extends EventEmitter implements ChannelSink {
   }
 
   private rejectPending(): void {
-    const failed = (): Error => new Error('Channel ended, no reply will be forthcoming')
-
     if (this.reply !== null) this.reply(failed())
 
     this.reply = null
@@ -189,7 +189,7 @@ export class Channel extends EventEmitter implements ChannelSink {
 
     this.pending = null
 
-    const unconfirmed = this.unconfirmed
+    const { unconfirmed } = this
 
     if (unconfirmed.length === 0) return
 
@@ -239,12 +239,12 @@ export class Channel extends EventEmitter implements ChannelSink {
   // region confirms
 
   public pushConfirmCallback(cb?: ConfirmCallback | null): void {
-    this.unconfirmed.push(cb || false)
+    this.unconfirmed.push((cb as Confirm | null | undefined) || false)
   }
 
   private confirm(fields: defs.BasicAckFields, isNack: boolean): void {
     const tag = fields.deliveryTag
-    const unconfirmed = this.unconfirmed
+    const { unconfirmed } = this
 
     if (fields.multiple) {
       const confirmed = unconfirmed.splice(0, tag - this.lwm + 1)
@@ -400,8 +400,8 @@ export class Channel extends EventEmitter implements ChannelSink {
     const size = readUInt64(buffer, offset + 4)
 
     const message: Message = {
-      fields: this.fields,
-      properties: defs.decodeBasicProperties(buffer, offset + 12),
+      fields: this.fields as Message['fields'],
+      properties: defs.decodeBasicProperties(buffer, offset + 12) as Message['properties'],
       content: size === 0 ? EMPTY : Buffer.allocUnsafe(size),
     }
 
@@ -530,7 +530,9 @@ export function convertCloseFrameToError(method: number, close: CloseFrame): Err
   return error
 }
 
-export type Consumer = (message: Message | null) => void
+export type { Confirm }
+
+export type Consumer = (message: ConsumeMessage | null) => void
 
 /** A channel that knows its consumers. */
 export class BaseChannel extends Channel {
@@ -544,7 +546,7 @@ export class BaseChannel extends Channel {
     this.consumers.delete(tag)
   }
 
-  public dispatchMessage(fields: { consumerTag: string }, message: Message | null): void {
+  public dispatchMessage(fields: { consumerTag: string }, message: ConsumeMessage | null): void {
     const consumer = this.consumers.get(fields.consumerTag)
 
     if (consumer === undefined) throw new Error(`Unknown consumer: ${fields.consumerTag}`)
@@ -553,7 +555,10 @@ export class BaseChannel extends Channel {
   }
 
   public handleDelivery(message: Message): void {
-    return this.dispatchMessage(message.fields, message)
+    return this.dispatchMessage(
+      message.fields as ConsumeMessage['fields'],
+      message as ConsumeMessage
+    )
   }
 
   /** The server cancelled a consumer: it is told so with a `null` in place of a message. */
