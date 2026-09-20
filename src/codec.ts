@@ -4,6 +4,8 @@
 // Everything reads and writes at an offset of a buffer it is given. Nothing is sliced on the way
 // in and nothing is allocated on the way out, apart from the values themselves.
 
+import { readString, writeString } from './strings.ts'
+
 /**
  * Thrown by an encoder that ran out of buffer. The one who owns the buffer catches it and
  * tries again with a larger one.
@@ -29,12 +31,16 @@ export function encodeTable(buffer: Buffer, table: Table, offset: number): numbe
 
     if (value === undefined) continue
 
-    const length = Buffer.byteLength(key)
+    // three bytes per character is the most UTF-8 takes of a string
+    if (
+      offset + 1 + 3 * key.length > buffer.length &&
+      offset + 1 + Buffer.byteLength(key) > buffer.length
+    )
+      throw OVERFLOW
 
-    if (offset + 1 + length > buffer.length) throw OVERFLOW
+    const length = writeString(buffer, key, offset + 1)
 
     buffer.writeUInt8(length, offset)
-    buffer.write(key, offset + 1, 'utf8')
     offset = encodeValue(buffer, value, offset + 1 + length)
   }
 
@@ -84,13 +90,16 @@ function encodeValue(buffer: Buffer, value: unknown, offset: number): number {
 
   switch (type) {
     case 'string': {
-      const length = Buffer.byteLength(val, 'utf8')
+      if (
+        offset + 5 + 3 * val.length > buffer.length &&
+        offset + 5 + Buffer.byteLength(val, 'utf8') > buffer.length
+      )
+        throw OVERFLOW
 
-      if (offset + 5 + length > buffer.length) throw OVERFLOW
+      const length = writeString(buffer, val, offset + 5)
 
       buffer[offset] = 83 // S
       buffer.writeUInt32BE(length, offset + 1)
-      buffer.write(val, offset + 5, 'utf8')
 
       return offset + 5 + length
     }
@@ -246,7 +255,7 @@ export function decodeFields(buffer: Buffer, start = 0, end = buffer.length): Ta
 
   while (offset < end) {
     const length = buffer[offset]!
-    const key = buffer.toString('utf8', offset + 1, offset + 1 + length)
+    const key = readString(buffer, offset + 1, length)
 
     fields[key] = decodeValue(buffer, offset + 1 + length)
     offset = cursor
@@ -286,12 +295,11 @@ function decodeValue(buffer: Buffer, offset: number): unknown {
 
     case 83: {
       // S
-      const end = offset + 4 + buffer.readUInt32BE(offset)
-      const value = buffer.toString('utf8', offset + 4, end)
+      const length = buffer.readUInt32BE(offset)
 
-      cursor = end
+      cursor = offset + 4 + length
 
-      return value
+      return readString(buffer, offset + 4, length)
     }
 
     case 73: // I

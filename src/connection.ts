@@ -43,6 +43,9 @@ const MAX_LONG = 4294967295
 /** How much is allocated at a time for outgoing frames. */
 const ARENA = 64 * 1024
 
+/** How much of what was allocated is kept for writing to again, at most. */
+const POOL = 1024 * 1024
+
 /** How many messages a channel takes within a turn before it says it has had enough. */
 const DEFAULT_WRITE_HWM = 1024
 
@@ -84,11 +87,22 @@ export interface ChannelOptions {
   highWaterMark?: number
 }
 
+/**
+ * An arena and how many stretches of it the socket has not finished writing. While there are
+ * any, nothing of the arena is written over.
+ */
+interface Lease {
+  readonly buffer: Buffer
+  pending: number
+  readonly done: () => void
+}
+
 type State = 'new' | 'opening' | 'open' | 'closing' | 'closed'
 type Handshake = (id: number, buffer: Buffer, offset: number) => void
 type Callback<T = void> = (error: Error | null, value?: T) => void
 
 const EMPTY = Buffer.alloc(0)
+const NO_LEASE: Lease = { buffer: EMPTY, pending: 0, done: () => undefined }
 
 export class Connection extends EventEmitter {
   public readonly stream: Duplex
@@ -126,22 +140,20 @@ export class Connection extends EventEmitter {
   private content: Buffer | null = null
 
   // sending
-  private arena = EMPTY
+  private arena: Buffer = EMPTY
   private head = 0
   private tail = 0
+  private lease: Lease = NO_LEASE
   private sealed: Buffer[] = []
-  private inflight = 0
+  private sealedLeases: Lease[] = []
+  private readonly pool: Lease[] = []
+  private pooled = 0
   private scheduled = false
   private saturated = false
   private epoch = 0
   private starved: ChannelRecord[] = []
 
   private readonly flushing = (): void => this.flush()
-
-  private readonly written = (): void => {
-    // the socket is done with everything it was given, so the arena can be written over
-    if (--this.inflight === 0 && this.head === this.tail && this.sealed.length === 0) this.reset()
-  }
 
   /**
    * @param fed - the bytes will be handed to `receive` by whoever made the stream, rather than
@@ -984,12 +996,61 @@ export class Connection extends EventEmitter {
     if (this.arena.length - this.tail < length) this.grow(length)
   }
 
-  /** Sets what has been written aside for the next flush, and goes on in a new arena. */
+  /** Sets what has been written aside for the next flush, and goes on in another arena. */
   private grow(length: number): void {
-    if (this.tail > this.head) this.sealed.push(this.arena.subarray(this.head, this.tail))
+    const { lease } = this
 
-    this.arena = Buffer.allocUnsafeSlow(Math.max(ARENA, length))
+    if (this.tail > this.head) {
+      lease.pending++
+      this.sealed.push(this.arena.subarray(this.head, this.tail))
+      this.sealedLeases.push(lease)
+    } else if (lease.pending === 0) this.shelve(lease)
+
+    this.lease = this.take(length)
+    this.arena = this.lease.buffer
     this.reset()
+  }
+
+  /** An arena nothing is using, or a new one. Memory written to before is the cheap kind. */
+  private take(length: number): Lease {
+    const { pool } = this
+
+    for (let i = 0; i < pool.length; i++)
+      if (pool[i]!.buffer.length >= length) {
+        const [lease] = pool.splice(i, 1)
+
+        this.pooled -= lease!.buffer.length
+
+        return lease!
+      }
+
+    let size = ARENA
+
+    while (size < length) size *= 2
+
+    const lease: Lease = {
+      buffer: Buffer.allocUnsafeSlow(size),
+      pending: 0,
+      done: () => {
+        // the socket is done with every stretch of the arena it was given
+        if (--lease.pending > 0) return
+
+        if (lease !== this.lease) this.shelve(lease)
+        else if (this.head === this.tail) this.reset()
+      },
+    }
+
+    return lease
+  }
+
+  /** Keeps an arena for later, unless enough of them are kept already. */
+  private shelve(lease: Lease): void {
+    const { length } = lease.buffer
+
+    if (length === 0 || this.pooled + length > POOL) return
+
+    this.pooled += length
+    this.pool.push(lease)
   }
 
   private reset(): void {
@@ -1016,6 +1077,7 @@ export class Connection extends EventEmitter {
     if (stream.writableEnded || stream.destroyed) {
       this.head = this.tail
       this.sealed.length = 0
+      this.sealedLeases.length = 0
 
       return
     }
@@ -1023,23 +1085,22 @@ export class Connection extends EventEmitter {
     let ok = true
 
     if (this.sealed.length === 0) {
-      this.inflight++
-      ok = stream.write(this.arena.subarray(this.head, this.tail), this.written)
+      this.lease.pending++
+      ok = stream.write(this.arena.subarray(this.head, this.tail), this.lease.done)
     } else {
       stream.cork()
 
-      for (const chunk of this.sealed) {
-        this.inflight++
-        ok = stream.write(chunk, this.written)
-      }
+      for (let i = 0; i < this.sealed.length; i++)
+        ok = stream.write(this.sealed[i]!, this.sealedLeases[i]!.done)
 
       if (pending) {
-        this.inflight++
-        ok = stream.write(this.arena.subarray(this.head, this.tail), this.written)
+        this.lease.pending++
+        ok = stream.write(this.arena.subarray(this.head, this.tail), this.lease.done)
       }
 
       stream.uncork()
       this.sealed.length = 0
+      this.sealedLeases.length = 0
     }
 
     this.head = this.tail

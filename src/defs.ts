@@ -524,17 +524,16 @@ export interface BasicQosFields {
   global: boolean
 }
 export function decodeBasicQos(buffer: Buffer, offset: number): BasicQosFields {
-  const fields: BasicQosFields = {
-    prefetchSize: undefined as any,
-    prefetchCount: undefined as any,
-    global: undefined as any,
-  }
-  fields.prefetchSize = buffer.readUInt32BE(offset)
+  const $prefetchSize = buffer.readUInt32BE(offset)
   offset += 4
-  fields.prefetchCount = buffer.readUInt16BE(offset)
+  const $prefetchCount = buffer.readUInt16BE(offset)
   offset += 2
-  fields.global = (buffer[offset]! & 1) !== 0
-  return fields
+  const $global = (buffer[offset]! & 1) !== 0
+  return {
+    prefetchSize: $prefetchSize,
+    prefetchCount: $prefetchCount,
+    global: $global,
+  }
 }
 export function encodeBasicQos(
   buffer: Buffer,
@@ -628,31 +627,29 @@ export interface BasicConsumeFields {
 }
 export function decodeBasicConsume(buffer: Buffer, offset: number): BasicConsumeFields {
   let end = 0
-  const fields: BasicConsumeFields = {
-    ticket: undefined as any,
-    queue: undefined as any,
-    consumerTag: undefined as any,
-    noLocal: undefined as any,
-    noAck: undefined as any,
-    exclusive: undefined as any,
-    nowait: undefined as any,
-    arguments: undefined as any,
-  }
-  fields.ticket = buffer.readUInt16BE(offset)
+  const $ticket = buffer.readUInt16BE(offset)
   offset += 2
-  fields.queue = readShortString(buffer, offset)
+  const $queue = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.consumerTag = readShortString(buffer, offset)
+  const $consumerTag = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.noLocal = (buffer[offset]! & 1) !== 0
-  fields.noAck = (buffer[offset]! & 2) !== 0
-  fields.exclusive = (buffer[offset]! & 4) !== 0
-  fields.nowait = (buffer[offset]! & 8) !== 0
+  const $noLocal = (buffer[offset]! & 1) !== 0
+  const $noAck = (buffer[offset]! & 2) !== 0
+  const $exclusive = (buffer[offset]! & 4) !== 0
+  const $nowait = (buffer[offset]! & 8) !== 0
   offset++
   end = offset + 4 + buffer.readUInt32BE(offset)
-  fields.arguments = decodeFields(buffer, offset + 4, end)
-  offset = end
-  return fields
+  const $arguments = decodeFields(buffer, offset + 4, end)
+  return {
+    ticket: $ticket,
+    queue: $queue,
+    consumerTag: $consumerTag,
+    noLocal: $noLocal,
+    noAck: $noAck,
+    exclusive: $exclusive,
+    nowait: $nowait,
+    arguments: $arguments,
+  }
 }
 export function encodeBasicConsume(
   buffer: Buffer,
@@ -736,12 +733,10 @@ export interface BasicConsumeOkFields {
   consumerTag: string
 }
 export function decodeBasicConsumeOk(buffer: Buffer, offset: number): BasicConsumeOkFields {
-  const fields: BasicConsumeOkFields = {
-    consumerTag: undefined as any,
+  const $consumerTag = readShortString(buffer, offset)
+  return {
+    consumerTag: $consumerTag,
   }
-  fields.consumerTag = readShortString(buffer, offset)
-  offset += 1 + buffer[offset]!
-  return fields
 }
 export function encodeBasicConsumeOk(
   buffer: Buffer,
@@ -782,14 +777,13 @@ export interface BasicCancelFields {
   nowait: boolean
 }
 export function decodeBasicCancel(buffer: Buffer, offset: number): BasicCancelFields {
-  const fields: BasicCancelFields = {
-    consumerTag: undefined as any,
-    nowait: undefined as any,
-  }
-  fields.consumerTag = readShortString(buffer, offset)
+  const $consumerTag = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.nowait = (buffer[offset]! & 1) !== 0
-  return fields
+  const $nowait = (buffer[offset]! & 1) !== 0
+  return {
+    consumerTag: $consumerTag,
+    nowait: $nowait,
+  }
 }
 export function encodeBasicCancel(
   buffer: Buffer,
@@ -839,12 +833,10 @@ export interface BasicCancelOkFields {
   consumerTag: string
 }
 export function decodeBasicCancelOk(buffer: Buffer, offset: number): BasicCancelOkFields {
-  const fields: BasicCancelOkFields = {
-    consumerTag: undefined as any,
+  const $consumerTag = readShortString(buffer, offset)
+  return {
+    consumerTag: $consumerTag,
   }
-  fields.consumerTag = readShortString(buffer, offset)
-  offset += 1 + buffer[offset]!
-  return fields
 }
 export function encodeBasicCancelOk(
   buffer: Buffer,
@@ -888,22 +880,21 @@ export interface BasicPublishFields {
   immediate: boolean
 }
 export function decodeBasicPublish(buffer: Buffer, offset: number): BasicPublishFields {
-  const fields: BasicPublishFields = {
-    ticket: undefined as any,
-    exchange: undefined as any,
-    routingKey: undefined as any,
-    mandatory: undefined as any,
-    immediate: undefined as any,
-  }
-  fields.ticket = buffer.readUInt16BE(offset)
+  const $ticket = buffer.readUInt16BE(offset)
   offset += 2
-  fields.exchange = readShortString(buffer, offset)
+  const $exchange = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.routingKey = readShortString(buffer, offset)
+  const $routingKey = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.mandatory = (buffer[offset]! & 1) !== 0
-  fields.immediate = (buffer[offset]! & 2) !== 0
-  return fields
+  const $mandatory = (buffer[offset]! & 1) !== 0
+  const $immediate = (buffer[offset]! & 2) !== 0
+  return {
+    ticket: $ticket,
+    exchange: $exchange,
+    routingKey: $routingKey,
+    mandatory: $mandatory,
+    immediate: $immediate,
+  }
 }
 export function encodeBasicPublish(
   buffer: Buffer,
@@ -975,21 +966,19 @@ export interface BasicReturnFields {
   routingKey: string
 }
 export function decodeBasicReturn(buffer: Buffer, offset: number): BasicReturnFields {
-  const fields: BasicReturnFields = {
-    replyCode: undefined as any,
-    replyText: undefined as any,
-    exchange: undefined as any,
-    routingKey: undefined as any,
-  }
-  fields.replyCode = buffer.readUInt16BE(offset)
+  const $replyCode = buffer.readUInt16BE(offset)
   offset += 2
-  fields.replyText = readShortString(buffer, offset)
+  const $replyText = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.exchange = readShortString(buffer, offset)
+  const $exchange = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.routingKey = readShortString(buffer, offset)
-  offset += 1 + buffer[offset]!
-  return fields
+  const $routingKey = readShortString(buffer, offset)
+  return {
+    replyCode: $replyCode,
+    replyText: $replyText,
+    exchange: $exchange,
+    routingKey: $routingKey,
+  }
 }
 export function encodeBasicReturn(
   buffer: Buffer,
@@ -1058,24 +1047,22 @@ export interface BasicDeliverFields {
   routingKey: string
 }
 export function decodeBasicDeliver(buffer: Buffer, offset: number): BasicDeliverFields {
-  const fields: BasicDeliverFields = {
-    consumerTag: undefined as any,
-    deliveryTag: undefined as any,
-    redelivered: undefined as any,
-    exchange: undefined as any,
-    routingKey: undefined as any,
-  }
-  fields.consumerTag = readShortString(buffer, offset)
+  const $consumerTag = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.deliveryTag = readUInt64(buffer, offset)
+  const $deliveryTag = readUInt64(buffer, offset)
   offset += 8
-  fields.redelivered = (buffer[offset]! & 1) !== 0
+  const $redelivered = (buffer[offset]! & 1) !== 0
   offset++
-  fields.exchange = readShortString(buffer, offset)
+  const $exchange = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.routingKey = readShortString(buffer, offset)
-  offset += 1 + buffer[offset]!
-  return fields
+  const $routingKey = readShortString(buffer, offset)
+  return {
+    consumerTag: $consumerTag,
+    deliveryTag: $deliveryTag,
+    redelivered: $redelivered,
+    exchange: $exchange,
+    routingKey: $routingKey,
+  }
 }
 export function encodeBasicDeliver(
   buffer: Buffer,
@@ -1150,17 +1137,16 @@ export interface BasicGetFields {
   noAck: boolean
 }
 export function decodeBasicGet(buffer: Buffer, offset: number): BasicGetFields {
-  const fields: BasicGetFields = {
-    ticket: undefined as any,
-    queue: undefined as any,
-    noAck: undefined as any,
-  }
-  fields.ticket = buffer.readUInt16BE(offset)
+  const $ticket = buffer.readUInt16BE(offset)
   offset += 2
-  fields.queue = readShortString(buffer, offset)
+  const $queue = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.noAck = (buffer[offset]! & 1) !== 0
-  return fields
+  const $noAck = (buffer[offset]! & 1) !== 0
+  return {
+    ticket: $ticket,
+    queue: $queue,
+    noAck: $noAck,
+  }
 }
 export function encodeBasicGet(
   buffer: Buffer,
@@ -1221,24 +1207,22 @@ export interface BasicGetOkFields {
   messageCount: number
 }
 export function decodeBasicGetOk(buffer: Buffer, offset: number): BasicGetOkFields {
-  const fields: BasicGetOkFields = {
-    deliveryTag: undefined as any,
-    redelivered: undefined as any,
-    exchange: undefined as any,
-    routingKey: undefined as any,
-    messageCount: undefined as any,
-  }
-  fields.deliveryTag = readUInt64(buffer, offset)
+  const $deliveryTag = readUInt64(buffer, offset)
   offset += 8
-  fields.redelivered = (buffer[offset]! & 1) !== 0
+  const $redelivered = (buffer[offset]! & 1) !== 0
   offset++
-  fields.exchange = readShortString(buffer, offset)
+  const $exchange = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.routingKey = readShortString(buffer, offset)
+  const $routingKey = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.messageCount = buffer.readUInt32BE(offset)
-  offset += 4
-  return fields
+  const $messageCount = buffer.readUInt32BE(offset)
+  return {
+    deliveryTag: $deliveryTag,
+    redelivered: $redelivered,
+    exchange: $exchange,
+    routingKey: $routingKey,
+    messageCount: $messageCount,
+  }
 }
 export function encodeBasicGetOk(
   buffer: Buffer,
@@ -1310,12 +1294,10 @@ export interface BasicGetEmptyFields {
   clusterId: string
 }
 export function decodeBasicGetEmpty(buffer: Buffer, offset: number): BasicGetEmptyFields {
-  const fields: BasicGetEmptyFields = {
-    clusterId: undefined as any,
+  const $clusterId = readShortString(buffer, offset)
+  return {
+    clusterId: $clusterId,
   }
-  fields.clusterId = readShortString(buffer, offset)
-  offset += 1 + buffer[offset]!
-  return fields
 }
 export function encodeBasicGetEmpty(
   buffer: Buffer,
@@ -1356,14 +1338,13 @@ export interface BasicAckFields {
   multiple: boolean
 }
 export function decodeBasicAck(buffer: Buffer, offset: number): BasicAckFields {
-  const fields: BasicAckFields = {
-    deliveryTag: undefined as any,
-    multiple: undefined as any,
-  }
-  fields.deliveryTag = readUInt64(buffer, offset)
+  const $deliveryTag = readUInt64(buffer, offset)
   offset += 8
-  fields.multiple = (buffer[offset]! & 1) !== 0
-  return fields
+  const $multiple = (buffer[offset]! & 1) !== 0
+  return {
+    deliveryTag: $deliveryTag,
+    multiple: $multiple,
+  }
 }
 export function encodeBasicAck(
   buffer: Buffer,
@@ -1413,14 +1394,13 @@ export interface BasicRejectFields {
   requeue: boolean
 }
 export function decodeBasicReject(buffer: Buffer, offset: number): BasicRejectFields {
-  const fields: BasicRejectFields = {
-    deliveryTag: undefined as any,
-    requeue: undefined as any,
-  }
-  fields.deliveryTag = readUInt64(buffer, offset)
+  const $deliveryTag = readUInt64(buffer, offset)
   offset += 8
-  fields.requeue = (buffer[offset]! & 1) !== 0
-  return fields
+  const $requeue = (buffer[offset]! & 1) !== 0
+  return {
+    deliveryTag: $deliveryTag,
+    requeue: $requeue,
+  }
 }
 export function encodeBasicReject(
   buffer: Buffer,
@@ -1469,11 +1449,10 @@ export interface BasicRecoverAsyncFields {
   requeue: boolean
 }
 export function decodeBasicRecoverAsync(buffer: Buffer, offset: number): BasicRecoverAsyncFields {
-  const fields: BasicRecoverAsyncFields = {
-    requeue: undefined as any,
+  const $requeue = (buffer[offset]! & 1) !== 0
+  return {
+    requeue: $requeue,
   }
-  fields.requeue = (buffer[offset]! & 1) !== 0
-  return fields
 }
 export function encodeBasicRecoverAsync(
   buffer: Buffer,
@@ -1513,11 +1492,10 @@ export interface BasicRecoverFields {
   requeue: boolean
 }
 export function decodeBasicRecover(buffer: Buffer, offset: number): BasicRecoverFields {
-  const fields: BasicRecoverFields = {
-    requeue: undefined as any,
+  const $requeue = (buffer[offset]! & 1) !== 0
+  return {
+    requeue: $requeue,
   }
-  fields.requeue = (buffer[offset]! & 1) !== 0
-  return fields
 }
 export function encodeBasicRecover(
   buffer: Buffer,
@@ -1589,16 +1567,15 @@ export interface BasicNackFields {
   requeue: boolean
 }
 export function decodeBasicNack(buffer: Buffer, offset: number): BasicNackFields {
-  const fields: BasicNackFields = {
-    deliveryTag: undefined as any,
-    multiple: undefined as any,
-    requeue: undefined as any,
-  }
-  fields.deliveryTag = readUInt64(buffer, offset)
+  const $deliveryTag = readUInt64(buffer, offset)
   offset += 8
-  fields.multiple = (buffer[offset]! & 1) !== 0
-  fields.requeue = (buffer[offset]! & 2) !== 0
-  return fields
+  const $multiple = (buffer[offset]! & 1) !== 0
+  const $requeue = (buffer[offset]! & 2) !== 0
+  return {
+    deliveryTag: $deliveryTag,
+    multiple: $multiple,
+    requeue: $requeue,
+  }
 }
 export function encodeBasicNack(
   buffer: Buffer,
@@ -1656,27 +1633,25 @@ export interface ConnectionStartFields {
 }
 export function decodeConnectionStart(buffer: Buffer, offset: number): ConnectionStartFields {
   let end = 0
-  const fields: ConnectionStartFields = {
-    versionMajor: undefined as any,
-    versionMinor: undefined as any,
-    serverProperties: undefined as any,
-    mechanisms: undefined as any,
-    locales: undefined as any,
+  const $versionMajor = buffer.readUInt8(offset)
+  offset++
+  const $versionMinor = buffer.readUInt8(offset)
+  offset++
+  end = offset + 4 + buffer.readUInt32BE(offset)
+  const $serverProperties = decodeFields(buffer, offset + 4, end)
+  offset = end
+  end = offset + 4 + buffer.readUInt32BE(offset)
+  const $mechanisms = bytes(buffer, offset + 4, end)
+  offset = end
+  end = offset + 4 + buffer.readUInt32BE(offset)
+  const $locales = bytes(buffer, offset + 4, end)
+  return {
+    versionMajor: $versionMajor,
+    versionMinor: $versionMinor,
+    serverProperties: $serverProperties,
+    mechanisms: $mechanisms,
+    locales: $locales,
   }
-  fields.versionMajor = buffer.readUInt8(offset)
-  offset++
-  fields.versionMinor = buffer.readUInt8(offset)
-  offset++
-  end = offset + 4 + buffer.readUInt32BE(offset)
-  fields.serverProperties = decodeFields(buffer, offset + 4, end)
-  offset = end
-  end = offset + 4 + buffer.readUInt32BE(offset)
-  fields.mechanisms = bytes(buffer, offset + 4, end)
-  offset = end
-  end = offset + 4 + buffer.readUInt32BE(offset)
-  fields.locales = bytes(buffer, offset + 4, end)
-  offset = end
-  return fields
 }
 export function encodeConnectionStart(
   buffer: Buffer,
@@ -1753,23 +1728,21 @@ export interface ConnectionStartOkFields {
 }
 export function decodeConnectionStartOk(buffer: Buffer, offset: number): ConnectionStartOkFields {
   let end = 0
-  const fields: ConnectionStartOkFields = {
-    clientProperties: undefined as any,
-    mechanism: undefined as any,
-    response: undefined as any,
-    locale: undefined as any,
+  end = offset + 4 + buffer.readUInt32BE(offset)
+  const $clientProperties = decodeFields(buffer, offset + 4, end)
+  offset = end
+  const $mechanism = readShortString(buffer, offset)
+  offset += 1 + buffer[offset]!
+  end = offset + 4 + buffer.readUInt32BE(offset)
+  const $response = bytes(buffer, offset + 4, end)
+  offset = end
+  const $locale = readShortString(buffer, offset)
+  return {
+    clientProperties: $clientProperties,
+    mechanism: $mechanism,
+    response: $response,
+    locale: $locale,
   }
-  end = offset + 4 + buffer.readUInt32BE(offset)
-  fields.clientProperties = decodeFields(buffer, offset + 4, end)
-  offset = end
-  fields.mechanism = readShortString(buffer, offset)
-  offset += 1 + buffer[offset]!
-  end = offset + 4 + buffer.readUInt32BE(offset)
-  fields.response = bytes(buffer, offset + 4, end)
-  offset = end
-  fields.locale = readShortString(buffer, offset)
-  offset += 1 + buffer[offset]!
-  return fields
 }
 export function encodeConnectionStartOk(
   buffer: Buffer,
@@ -1836,13 +1809,11 @@ export interface ConnectionSecureFields {
 }
 export function decodeConnectionSecure(buffer: Buffer, offset: number): ConnectionSecureFields {
   let end = 0
-  const fields: ConnectionSecureFields = {
-    challenge: undefined as any,
-  }
   end = offset + 4 + buffer.readUInt32BE(offset)
-  fields.challenge = bytes(buffer, offset + 4, end)
-  offset = end
-  return fields
+  const $challenge = bytes(buffer, offset + 4, end)
+  return {
+    challenge: $challenge,
+  }
 }
 export function encodeConnectionSecure(
   buffer: Buffer,
@@ -1884,13 +1855,11 @@ export interface ConnectionSecureOkFields {
 }
 export function decodeConnectionSecureOk(buffer: Buffer, offset: number): ConnectionSecureOkFields {
   let end = 0
-  const fields: ConnectionSecureOkFields = {
-    response: undefined as any,
-  }
   end = offset + 4 + buffer.readUInt32BE(offset)
-  fields.response = bytes(buffer, offset + 4, end)
-  offset = end
-  return fields
+  const $response = bytes(buffer, offset + 4, end)
+  return {
+    response: $response,
+  }
 }
 export function encodeConnectionSecureOk(
   buffer: Buffer,
@@ -1933,18 +1902,16 @@ export interface ConnectionTuneFields {
   heartbeat: number
 }
 export function decodeConnectionTune(buffer: Buffer, offset: number): ConnectionTuneFields {
-  const fields: ConnectionTuneFields = {
-    channelMax: undefined as any,
-    frameMax: undefined as any,
-    heartbeat: undefined as any,
-  }
-  fields.channelMax = buffer.readUInt16BE(offset)
+  const $channelMax = buffer.readUInt16BE(offset)
   offset += 2
-  fields.frameMax = buffer.readUInt32BE(offset)
+  const $frameMax = buffer.readUInt32BE(offset)
   offset += 4
-  fields.heartbeat = buffer.readUInt16BE(offset)
-  offset += 2
-  return fields
+  const $heartbeat = buffer.readUInt16BE(offset)
+  return {
+    channelMax: $channelMax,
+    frameMax: $frameMax,
+    heartbeat: $heartbeat,
+  }
 }
 export function encodeConnectionTune(
   buffer: Buffer,
@@ -2001,18 +1968,16 @@ export interface ConnectionTuneOkFields {
   heartbeat: number
 }
 export function decodeConnectionTuneOk(buffer: Buffer, offset: number): ConnectionTuneOkFields {
-  const fields: ConnectionTuneOkFields = {
-    channelMax: undefined as any,
-    frameMax: undefined as any,
-    heartbeat: undefined as any,
-  }
-  fields.channelMax = buffer.readUInt16BE(offset)
+  const $channelMax = buffer.readUInt16BE(offset)
   offset += 2
-  fields.frameMax = buffer.readUInt32BE(offset)
+  const $frameMax = buffer.readUInt32BE(offset)
   offset += 4
-  fields.heartbeat = buffer.readUInt16BE(offset)
-  offset += 2
-  return fields
+  const $heartbeat = buffer.readUInt16BE(offset)
+  return {
+    channelMax: $channelMax,
+    frameMax: $frameMax,
+    heartbeat: $heartbeat,
+  }
 }
 export function encodeConnectionTuneOk(
   buffer: Buffer,
@@ -2069,17 +2034,16 @@ export interface ConnectionOpenFields {
   insist: boolean
 }
 export function decodeConnectionOpen(buffer: Buffer, offset: number): ConnectionOpenFields {
-  const fields: ConnectionOpenFields = {
-    virtualHost: undefined as any,
-    capabilities: undefined as any,
-    insist: undefined as any,
+  const $virtualHost = readShortString(buffer, offset)
+  offset += 1 + buffer[offset]!
+  const $capabilities = readShortString(buffer, offset)
+  offset += 1 + buffer[offset]!
+  const $insist = (buffer[offset]! & 1) !== 0
+  return {
+    virtualHost: $virtualHost,
+    capabilities: $capabilities,
+    insist: $insist,
   }
-  fields.virtualHost = readShortString(buffer, offset)
-  offset += 1 + buffer[offset]!
-  fields.capabilities = readShortString(buffer, offset)
-  offset += 1 + buffer[offset]!
-  fields.insist = (buffer[offset]! & 1) !== 0
-  return fields
 }
 export function encodeConnectionOpen(
   buffer: Buffer,
@@ -2141,12 +2105,10 @@ export interface ConnectionOpenOkFields {
   knownHosts: string
 }
 export function decodeConnectionOpenOk(buffer: Buffer, offset: number): ConnectionOpenOkFields {
-  const fields: ConnectionOpenOkFields = {
-    knownHosts: undefined as any,
+  const $knownHosts = readShortString(buffer, offset)
+  return {
+    knownHosts: $knownHosts,
   }
-  fields.knownHosts = readShortString(buffer, offset)
-  offset += 1 + buffer[offset]!
-  return fields
 }
 export function encodeConnectionOpenOk(
   buffer: Buffer,
@@ -2189,21 +2151,19 @@ export interface ConnectionCloseFields {
   methodId: number
 }
 export function decodeConnectionClose(buffer: Buffer, offset: number): ConnectionCloseFields {
-  const fields: ConnectionCloseFields = {
-    replyCode: undefined as any,
-    replyText: undefined as any,
-    classId: undefined as any,
-    methodId: undefined as any,
-  }
-  fields.replyCode = buffer.readUInt16BE(offset)
+  const $replyCode = buffer.readUInt16BE(offset)
   offset += 2
-  fields.replyText = readShortString(buffer, offset)
+  const $replyText = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.classId = buffer.readUInt16BE(offset)
+  const $classId = buffer.readUInt16BE(offset)
   offset += 2
-  fields.methodId = buffer.readUInt16BE(offset)
-  offset += 2
-  return fields
+  const $methodId = buffer.readUInt16BE(offset)
+  return {
+    replyCode: $replyCode,
+    replyText: $replyText,
+    classId: $classId,
+    methodId: $methodId,
+  }
 }
 export function encodeConnectionClose(
   buffer: Buffer,
@@ -2296,12 +2256,10 @@ export interface ConnectionBlockedFields {
   reason: string
 }
 export function decodeConnectionBlocked(buffer: Buffer, offset: number): ConnectionBlockedFields {
-  const fields: ConnectionBlockedFields = {
-    reason: undefined as any,
+  const $reason = readShortString(buffer, offset)
+  return {
+    reason: $reason,
   }
-  fields.reason = readShortString(buffer, offset)
-  offset += 1 + buffer[offset]!
-  return fields
 }
 export function encodeConnectionBlocked(
   buffer: Buffer,
@@ -2379,16 +2337,14 @@ export function decodeConnectionUpdateSecret(
   offset: number
 ): ConnectionUpdateSecretFields {
   let end = 0
-  const fields: ConnectionUpdateSecretFields = {
-    newSecret: undefined as any,
-    reason: undefined as any,
-  }
   end = offset + 4 + buffer.readUInt32BE(offset)
-  fields.newSecret = bytes(buffer, offset + 4, end)
+  const $newSecret = bytes(buffer, offset + 4, end)
   offset = end
-  fields.reason = readShortString(buffer, offset)
-  offset += 1 + buffer[offset]!
-  return fields
+  const $reason = readShortString(buffer, offset)
+  return {
+    newSecret: $newSecret,
+    reason: $reason,
+  }
 }
 export function encodeConnectionUpdateSecret(
   buffer: Buffer,
@@ -2472,12 +2428,10 @@ export interface ChannelOpenFields {
   outOfBand: string
 }
 export function decodeChannelOpen(buffer: Buffer, offset: number): ChannelOpenFields {
-  const fields: ChannelOpenFields = {
-    outOfBand: undefined as any,
+  const $outOfBand = readShortString(buffer, offset)
+  return {
+    outOfBand: $outOfBand,
   }
-  fields.outOfBand = readShortString(buffer, offset)
-  offset += 1 + buffer[offset]!
-  return fields
 }
 export function encodeChannelOpen(
   buffer: Buffer,
@@ -2518,13 +2472,11 @@ export interface ChannelOpenOkFields {
 }
 export function decodeChannelOpenOk(buffer: Buffer, offset: number): ChannelOpenOkFields {
   let end = 0
-  const fields: ChannelOpenOkFields = {
-    channelId: undefined as any,
-  }
   end = offset + 4 + buffer.readUInt32BE(offset)
-  fields.channelId = bytes(buffer, offset + 4, end)
-  offset = end
-  return fields
+  const $channelId = bytes(buffer, offset + 4, end)
+  return {
+    channelId: $channelId,
+  }
 }
 export function encodeChannelOpenOk(
   buffer: Buffer,
@@ -2565,11 +2517,10 @@ export interface ChannelFlowFields {
   active: boolean
 }
 export function decodeChannelFlow(buffer: Buffer, offset: number): ChannelFlowFields {
-  const fields: ChannelFlowFields = {
-    active: undefined as any,
+  const $active = (buffer[offset]! & 1) !== 0
+  return {
+    active: $active,
   }
-  fields.active = (buffer[offset]! & 1) !== 0
-  return fields
 }
 export function encodeChannelFlow(
   buffer: Buffer,
@@ -2609,11 +2560,10 @@ export interface ChannelFlowOkFields {
   active: boolean
 }
 export function decodeChannelFlowOk(buffer: Buffer, offset: number): ChannelFlowOkFields {
-  const fields: ChannelFlowOkFields = {
-    active: undefined as any,
+  const $active = (buffer[offset]! & 1) !== 0
+  return {
+    active: $active,
   }
-  fields.active = (buffer[offset]! & 1) !== 0
-  return fields
 }
 export function encodeChannelFlowOk(
   buffer: Buffer,
@@ -2656,21 +2606,19 @@ export interface ChannelCloseFields {
   methodId: number
 }
 export function decodeChannelClose(buffer: Buffer, offset: number): ChannelCloseFields {
-  const fields: ChannelCloseFields = {
-    replyCode: undefined as any,
-    replyText: undefined as any,
-    classId: undefined as any,
-    methodId: undefined as any,
-  }
-  fields.replyCode = buffer.readUInt16BE(offset)
+  const $replyCode = buffer.readUInt16BE(offset)
   offset += 2
-  fields.replyText = readShortString(buffer, offset)
+  const $replyText = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.classId = buffer.readUInt16BE(offset)
+  const $classId = buffer.readUInt16BE(offset)
   offset += 2
-  fields.methodId = buffer.readUInt16BE(offset)
-  offset += 2
-  return fields
+  const $methodId = buffer.readUInt16BE(offset)
+  return {
+    replyCode: $replyCode,
+    replyText: $replyText,
+    classId: $classId,
+    methodId: $methodId,
+  }
 }
 export function encodeChannelClose(
   buffer: Buffer,
@@ -2768,22 +2716,21 @@ export interface AccessRequestFields {
   read: boolean
 }
 export function decodeAccessRequest(buffer: Buffer, offset: number): AccessRequestFields {
-  const fields: AccessRequestFields = {
-    realm: undefined as any,
-    exclusive: undefined as any,
-    passive: undefined as any,
-    active: undefined as any,
-    write: undefined as any,
-    read: undefined as any,
-  }
-  fields.realm = readShortString(buffer, offset)
+  const $realm = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.exclusive = (buffer[offset]! & 1) !== 0
-  fields.passive = (buffer[offset]! & 2) !== 0
-  fields.active = (buffer[offset]! & 4) !== 0
-  fields.write = (buffer[offset]! & 8) !== 0
-  fields.read = (buffer[offset]! & 16) !== 0
-  return fields
+  const $exclusive = (buffer[offset]! & 1) !== 0
+  const $passive = (buffer[offset]! & 2) !== 0
+  const $active = (buffer[offset]! & 4) !== 0
+  const $write = (buffer[offset]! & 8) !== 0
+  const $read = (buffer[offset]! & 16) !== 0
+  return {
+    realm: $realm,
+    exclusive: $exclusive,
+    passive: $passive,
+    active: $active,
+    write: $write,
+    read: $read,
+  }
 }
 export function encodeAccessRequest(
   buffer: Buffer,
@@ -2849,12 +2796,10 @@ export interface AccessRequestOkFields {
   ticket: number
 }
 export function decodeAccessRequestOk(buffer: Buffer, offset: number): AccessRequestOkFields {
-  const fields: AccessRequestOkFields = {
-    ticket: undefined as any,
+  const $ticket = buffer.readUInt16BE(offset)
+  return {
+    ticket: $ticket,
   }
-  fields.ticket = buffer.readUInt16BE(offset)
-  offset += 2
-  return fields
 }
 export function encodeAccessRequestOk(
   buffer: Buffer,
@@ -2902,33 +2847,31 @@ export interface ExchangeDeclareFields {
 }
 export function decodeExchangeDeclare(buffer: Buffer, offset: number): ExchangeDeclareFields {
   let end = 0
-  const fields: ExchangeDeclareFields = {
-    ticket: undefined as any,
-    exchange: undefined as any,
-    type: undefined as any,
-    passive: undefined as any,
-    durable: undefined as any,
-    autoDelete: undefined as any,
-    internal: undefined as any,
-    nowait: undefined as any,
-    arguments: undefined as any,
-  }
-  fields.ticket = buffer.readUInt16BE(offset)
+  const $ticket = buffer.readUInt16BE(offset)
   offset += 2
-  fields.exchange = readShortString(buffer, offset)
+  const $exchange = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.type = readShortString(buffer, offset)
+  const $type = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.passive = (buffer[offset]! & 1) !== 0
-  fields.durable = (buffer[offset]! & 2) !== 0
-  fields.autoDelete = (buffer[offset]! & 4) !== 0
-  fields.internal = (buffer[offset]! & 8) !== 0
-  fields.nowait = (buffer[offset]! & 16) !== 0
+  const $passive = (buffer[offset]! & 1) !== 0
+  const $durable = (buffer[offset]! & 2) !== 0
+  const $autoDelete = (buffer[offset]! & 4) !== 0
+  const $internal = (buffer[offset]! & 8) !== 0
+  const $nowait = (buffer[offset]! & 16) !== 0
   offset++
   end = offset + 4 + buffer.readUInt32BE(offset)
-  fields.arguments = decodeFields(buffer, offset + 4, end)
-  offset = end
-  return fields
+  const $arguments = decodeFields(buffer, offset + 4, end)
+  return {
+    ticket: $ticket,
+    exchange: $exchange,
+    type: $type,
+    passive: $passive,
+    durable: $durable,
+    autoDelete: $autoDelete,
+    internal: $internal,
+    nowait: $nowait,
+    arguments: $arguments,
+  }
 }
 export function encodeExchangeDeclare(
   buffer: Buffer,
@@ -3049,19 +2992,18 @@ export interface ExchangeDeleteFields {
   nowait: boolean
 }
 export function decodeExchangeDelete(buffer: Buffer, offset: number): ExchangeDeleteFields {
-  const fields: ExchangeDeleteFields = {
-    ticket: undefined as any,
-    exchange: undefined as any,
-    ifUnused: undefined as any,
-    nowait: undefined as any,
-  }
-  fields.ticket = buffer.readUInt16BE(offset)
+  const $ticket = buffer.readUInt16BE(offset)
   offset += 2
-  fields.exchange = readShortString(buffer, offset)
+  const $exchange = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.ifUnused = (buffer[offset]! & 1) !== 0
-  fields.nowait = (buffer[offset]! & 2) !== 0
-  return fields
+  const $ifUnused = (buffer[offset]! & 1) !== 0
+  const $nowait = (buffer[offset]! & 2) !== 0
+  return {
+    ticket: $ticket,
+    exchange: $exchange,
+    ifUnused: $ifUnused,
+    nowait: $nowait,
+  }
 }
 export function encodeExchangeDelete(
   buffer: Buffer,
@@ -3158,28 +3100,26 @@ export interface ExchangeBindFields {
 }
 export function decodeExchangeBind(buffer: Buffer, offset: number): ExchangeBindFields {
   let end = 0
-  const fields: ExchangeBindFields = {
-    ticket: undefined as any,
-    destination: undefined as any,
-    source: undefined as any,
-    routingKey: undefined as any,
-    nowait: undefined as any,
-    arguments: undefined as any,
-  }
-  fields.ticket = buffer.readUInt16BE(offset)
+  const $ticket = buffer.readUInt16BE(offset)
   offset += 2
-  fields.destination = readShortString(buffer, offset)
+  const $destination = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.source = readShortString(buffer, offset)
+  const $source = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.routingKey = readShortString(buffer, offset)
+  const $routingKey = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.nowait = (buffer[offset]! & 1) !== 0
+  const $nowait = (buffer[offset]! & 1) !== 0
   offset++
   end = offset + 4 + buffer.readUInt32BE(offset)
-  fields.arguments = decodeFields(buffer, offset + 4, end)
-  offset = end
-  return fields
+  const $arguments = decodeFields(buffer, offset + 4, end)
+  return {
+    ticket: $ticket,
+    destination: $destination,
+    source: $source,
+    routingKey: $routingKey,
+    nowait: $nowait,
+    arguments: $arguments,
+  }
 }
 export function encodeExchangeBind(
   buffer: Buffer,
@@ -3295,28 +3235,26 @@ export interface ExchangeUnbindFields {
 }
 export function decodeExchangeUnbind(buffer: Buffer, offset: number): ExchangeUnbindFields {
   let end = 0
-  const fields: ExchangeUnbindFields = {
-    ticket: undefined as any,
-    destination: undefined as any,
-    source: undefined as any,
-    routingKey: undefined as any,
-    nowait: undefined as any,
-    arguments: undefined as any,
-  }
-  fields.ticket = buffer.readUInt16BE(offset)
+  const $ticket = buffer.readUInt16BE(offset)
   offset += 2
-  fields.destination = readShortString(buffer, offset)
+  const $destination = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.source = readShortString(buffer, offset)
+  const $source = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.routingKey = readShortString(buffer, offset)
+  const $routingKey = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.nowait = (buffer[offset]! & 1) !== 0
+  const $nowait = (buffer[offset]! & 1) !== 0
   offset++
   end = offset + 4 + buffer.readUInt32BE(offset)
-  fields.arguments = decodeFields(buffer, offset + 4, end)
-  offset = end
-  return fields
+  const $arguments = decodeFields(buffer, offset + 4, end)
+  return {
+    ticket: $ticket,
+    destination: $destination,
+    source: $source,
+    routingKey: $routingKey,
+    nowait: $nowait,
+    arguments: $arguments,
+  }
 }
 export function encodeExchangeUnbind(
   buffer: Buffer,
@@ -3434,30 +3372,28 @@ export interface QueueDeclareFields {
 }
 export function decodeQueueDeclare(buffer: Buffer, offset: number): QueueDeclareFields {
   let end = 0
-  const fields: QueueDeclareFields = {
-    ticket: undefined as any,
-    queue: undefined as any,
-    passive: undefined as any,
-    durable: undefined as any,
-    exclusive: undefined as any,
-    autoDelete: undefined as any,
-    nowait: undefined as any,
-    arguments: undefined as any,
-  }
-  fields.ticket = buffer.readUInt16BE(offset)
+  const $ticket = buffer.readUInt16BE(offset)
   offset += 2
-  fields.queue = readShortString(buffer, offset)
+  const $queue = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.passive = (buffer[offset]! & 1) !== 0
-  fields.durable = (buffer[offset]! & 2) !== 0
-  fields.exclusive = (buffer[offset]! & 4) !== 0
-  fields.autoDelete = (buffer[offset]! & 8) !== 0
-  fields.nowait = (buffer[offset]! & 16) !== 0
+  const $passive = (buffer[offset]! & 1) !== 0
+  const $durable = (buffer[offset]! & 2) !== 0
+  const $exclusive = (buffer[offset]! & 4) !== 0
+  const $autoDelete = (buffer[offset]! & 8) !== 0
+  const $nowait = (buffer[offset]! & 16) !== 0
   offset++
   end = offset + 4 + buffer.readUInt32BE(offset)
-  fields.arguments = decodeFields(buffer, offset + 4, end)
-  offset = end
-  return fields
+  const $arguments = decodeFields(buffer, offset + 4, end)
+  return {
+    ticket: $ticket,
+    queue: $queue,
+    passive: $passive,
+    durable: $durable,
+    exclusive: $exclusive,
+    autoDelete: $autoDelete,
+    nowait: $nowait,
+    arguments: $arguments,
+  }
 }
 export function encodeQueueDeclare(
   buffer: Buffer,
@@ -3539,18 +3475,16 @@ export interface QueueDeclareOkFields {
   consumerCount: number
 }
 export function decodeQueueDeclareOk(buffer: Buffer, offset: number): QueueDeclareOkFields {
-  const fields: QueueDeclareOkFields = {
-    queue: undefined as any,
-    messageCount: undefined as any,
-    consumerCount: undefined as any,
-  }
-  fields.queue = readShortString(buffer, offset)
+  const $queue = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.messageCount = buffer.readUInt32BE(offset)
+  const $messageCount = buffer.readUInt32BE(offset)
   offset += 4
-  fields.consumerCount = buffer.readUInt32BE(offset)
-  offset += 4
-  return fields
+  const $consumerCount = buffer.readUInt32BE(offset)
+  return {
+    queue: $queue,
+    messageCount: $messageCount,
+    consumerCount: $consumerCount,
+  }
 }
 export function encodeQueueDeclareOk(
   buffer: Buffer,
@@ -3612,28 +3546,26 @@ export interface QueueBindFields {
 }
 export function decodeQueueBind(buffer: Buffer, offset: number): QueueBindFields {
   let end = 0
-  const fields: QueueBindFields = {
-    ticket: undefined as any,
-    queue: undefined as any,
-    exchange: undefined as any,
-    routingKey: undefined as any,
-    nowait: undefined as any,
-    arguments: undefined as any,
-  }
-  fields.ticket = buffer.readUInt16BE(offset)
+  const $ticket = buffer.readUInt16BE(offset)
   offset += 2
-  fields.queue = readShortString(buffer, offset)
+  const $queue = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.exchange = readShortString(buffer, offset)
+  const $exchange = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.routingKey = readShortString(buffer, offset)
+  const $routingKey = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.nowait = (buffer[offset]! & 1) !== 0
+  const $nowait = (buffer[offset]! & 1) !== 0
   offset++
   end = offset + 4 + buffer.readUInt32BE(offset)
-  fields.arguments = decodeFields(buffer, offset + 4, end)
-  offset = end
-  return fields
+  const $arguments = decodeFields(buffer, offset + 4, end)
+  return {
+    ticket: $ticket,
+    queue: $queue,
+    exchange: $exchange,
+    routingKey: $routingKey,
+    nowait: $nowait,
+    arguments: $arguments,
+  }
 }
 export function encodeQueueBind(
   buffer: Buffer,
@@ -3745,17 +3677,16 @@ export interface QueuePurgeFields {
   nowait: boolean
 }
 export function decodeQueuePurge(buffer: Buffer, offset: number): QueuePurgeFields {
-  const fields: QueuePurgeFields = {
-    ticket: undefined as any,
-    queue: undefined as any,
-    nowait: undefined as any,
-  }
-  fields.ticket = buffer.readUInt16BE(offset)
+  const $ticket = buffer.readUInt16BE(offset)
   offset += 2
-  fields.queue = readShortString(buffer, offset)
+  const $queue = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.nowait = (buffer[offset]! & 1) !== 0
-  return fields
+  const $nowait = (buffer[offset]! & 1) !== 0
+  return {
+    ticket: $ticket,
+    queue: $queue,
+    nowait: $nowait,
+  }
 }
 export function encodeQueuePurge(
   buffer: Buffer,
@@ -3812,12 +3743,10 @@ export interface QueuePurgeOkFields {
   messageCount: number
 }
 export function decodeQueuePurgeOk(buffer: Buffer, offset: number): QueuePurgeOkFields {
-  const fields: QueuePurgeOkFields = {
-    messageCount: undefined as any,
+  const $messageCount = buffer.readUInt32BE(offset)
+  return {
+    messageCount: $messageCount,
   }
-  fields.messageCount = buffer.readUInt32BE(offset)
-  offset += 4
-  return fields
 }
 export function encodeQueuePurgeOk(
   buffer: Buffer,
@@ -3860,21 +3789,20 @@ export interface QueueDeleteFields {
   nowait: boolean
 }
 export function decodeQueueDelete(buffer: Buffer, offset: number): QueueDeleteFields {
-  const fields: QueueDeleteFields = {
-    ticket: undefined as any,
-    queue: undefined as any,
-    ifUnused: undefined as any,
-    ifEmpty: undefined as any,
-    nowait: undefined as any,
-  }
-  fields.ticket = buffer.readUInt16BE(offset)
+  const $ticket = buffer.readUInt16BE(offset)
   offset += 2
-  fields.queue = readShortString(buffer, offset)
+  const $queue = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.ifUnused = (buffer[offset]! & 1) !== 0
-  fields.ifEmpty = (buffer[offset]! & 2) !== 0
-  fields.nowait = (buffer[offset]! & 4) !== 0
-  return fields
+  const $ifUnused = (buffer[offset]! & 1) !== 0
+  const $ifEmpty = (buffer[offset]! & 2) !== 0
+  const $nowait = (buffer[offset]! & 4) !== 0
+  return {
+    ticket: $ticket,
+    queue: $queue,
+    ifUnused: $ifUnused,
+    ifEmpty: $ifEmpty,
+    nowait: $nowait,
+  }
 }
 export function encodeQueueDelete(
   buffer: Buffer,
@@ -3939,12 +3867,10 @@ export interface QueueDeleteOkFields {
   messageCount: number
 }
 export function decodeQueueDeleteOk(buffer: Buffer, offset: number): QueueDeleteOkFields {
-  const fields: QueueDeleteOkFields = {
-    messageCount: undefined as any,
+  const $messageCount = buffer.readUInt32BE(offset)
+  return {
+    messageCount: $messageCount,
   }
-  fields.messageCount = buffer.readUInt32BE(offset)
-  offset += 4
-  return fields
 }
 export function encodeQueueDeleteOk(
   buffer: Buffer,
@@ -3988,25 +3914,23 @@ export interface QueueUnbindFields {
 }
 export function decodeQueueUnbind(buffer: Buffer, offset: number): QueueUnbindFields {
   let end = 0
-  const fields: QueueUnbindFields = {
-    ticket: undefined as any,
-    queue: undefined as any,
-    exchange: undefined as any,
-    routingKey: undefined as any,
-    arguments: undefined as any,
-  }
-  fields.ticket = buffer.readUInt16BE(offset)
+  const $ticket = buffer.readUInt16BE(offset)
   offset += 2
-  fields.queue = readShortString(buffer, offset)
+  const $queue = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.exchange = readShortString(buffer, offset)
+  const $exchange = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
-  fields.routingKey = readShortString(buffer, offset)
+  const $routingKey = readShortString(buffer, offset)
   offset += 1 + buffer[offset]!
   end = offset + 4 + buffer.readUInt32BE(offset)
-  fields.arguments = decodeFields(buffer, offset + 4, end)
-  offset = end
-  return fields
+  const $arguments = decodeFields(buffer, offset + 4, end)
+  return {
+    ticket: $ticket,
+    queue: $queue,
+    exchange: $exchange,
+    routingKey: $routingKey,
+    arguments: $arguments,
+  }
 }
 export function encodeQueueUnbind(
   buffer: Buffer,
@@ -4288,11 +4212,10 @@ export interface ConfirmSelectFields {
   nowait: boolean
 }
 export function decodeConfirmSelect(buffer: Buffer, offset: number): ConfirmSelectFields {
-  const fields: ConfirmSelectFields = {
-    nowait: undefined as any,
+  const $nowait = (buffer[offset]! & 1) !== 0
+  return {
+    nowait: $nowait,
   }
-  fields.nowait = (buffer[offset]! & 1) !== 0
-  return fields
 }
 export function encodeConfirmSelect(
   buffer: Buffer,

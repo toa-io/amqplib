@@ -297,12 +297,11 @@ const methodDecoder = (m: Definition): void => {
     return
   }
 
+  // Every argument is read into a constant, and the fields are made of them in one go: an object
+  // written once is cheaper than one filled in field by field.
   emit(
     `export function decode${m.name}(buffer: Buffer, offset: number): ${m.name}Fields {`,
-    m.args.some(a => a.type === 'longstr' || a.type === 'table') ? 'let end = 0' : '',
-    `const fields: ${m.name}Fields = {`,
-    ...m.args.map(a => `${a.name}: undefined as any,`),
-    '}'
+    m.args.some(a => a.type === 'longstr' || a.type === 'table') ? 'let end = 0' : ''
   )
 
   let bits = 0
@@ -313,7 +312,7 @@ const methodDecoder = (m: Definition): void => {
       bits = 0
     }
 
-    emit(...read(a, bits))
+    emit(...read(a, bits, `const $${a.name}`))
 
     if (a.type === 'bit' && ++bits === 8) {
       emit('offset++')
@@ -321,13 +320,14 @@ const methodDecoder = (m: Definition): void => {
     }
   }
 
-  emit('return fields', '}', '')
+  // the last argument leaves the offset where nobody reads it
+  while (lines.at(-1)!.startsWith('offset')) lines.pop()
+
+  emit('return {', ...m.args.map(a => `${a.name}: $${a.name},`), '}', '}', '')
 }
 
 /** The statements that read an argument into its field. */
-const read = (a: Argument, bit = 0): string[] => {
-  const field = `fields.${a.name}`
-
+const read = (a: Argument, bit = 0, field = `fields.${a.name}`): string[] => {
   switch (a.type) {
     case 'bit':
       return [`${field} = (buffer[offset]! & ${1 << bit}) !== 0`]
