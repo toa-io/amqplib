@@ -42,6 +42,10 @@ class Proxy {
         socket.on('close', () => this.sockets.delete(socket))
       }
 
+      // a proxy whose upstream will not have it drops the client, rather than accepting the
+      // connection and then never speaking, which nothing on the other side times out of
+      upstream.on('error', () => client.destroy())
+
       client.on('data', chunk => this.silent || upstream.write(chunk))
       upstream.on('data', chunk => this.silent || client.write(chunk))
       client.on('end', () => upstream.end())
@@ -65,8 +69,15 @@ class Proxy {
   }
 }
 
-const connections: ChannelModel[] = []
+/** Everything to be closed once the run ends, so that nothing holds the process open. */
+const connections: { close(): Promise<unknown> }[] = []
 const proxies: Proxy[] = []
+
+/**
+ * How many times a recovering connection tries before it gives up. Without a limit it retries
+ * for ever, and a run against no broker would hang rather than fail.
+ */
+const RETRIES = 5
 
 async function open(url = URL, options?: ConnectOptions): Promise<ChannelModel> {
   const connection = await connect(url, options)
@@ -218,6 +229,8 @@ describe('failures', () => {
   it('says so when the connection is cut', async () => {
     const proxy = new Proxy()
     const connection = await connect(await through(proxy))
+    connections.push(connection)
+
     const channel = await connection.createChannel()
     const failed = new Promise<Error>(resolve => connection.once('error', resolve))
     const closed = new Promise<Error>(resolve => connection.once('close', resolve))
@@ -236,6 +249,8 @@ describe('failures', () => {
   it('fails what awaits a reply when the connection is cut', async () => {
     const proxy = new Proxy()
     const connection = await connect(await through(proxy))
+    connections.push(connection)
+
     const channel = await connection.createChannel()
 
     connection.on('error', () => undefined)
@@ -255,6 +270,8 @@ describe('failures', () => {
 
     try {
       const connection = await connect(await through(proxy, 'amqp', '?heartbeat=1'))
+      connections.push(connection)
+
       const failed = new Promise<Error>(resolve => connection.once('error', resolve))
       const started = Date.now()
 
@@ -289,9 +306,10 @@ describe('failures', () => {
     const proxy = new Proxy()
 
     const connection = await connect(await through(proxy), {
-      recovery: { initialDelay: 10, jitter: 0 },
+      recovery: { initialDelay: 10, jitter: 0, maxRetries: RETRIES },
     })
 
+    connections.push(connection)
     connection.on('error', () => undefined)
 
     const reconnected = new Promise(resolve => connection.once('connect', resolve))
