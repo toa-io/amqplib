@@ -4,6 +4,18 @@ An AMQP 0-9-1 client for RabbitMQ, for Node.js: the interface of
 [amqplib](https://github.com/amqp-node/amqplib), built for throughput and a small memory
 footprint.
 
+| per message, against a broker                 | amqplib |    this |              |
+| --------------------------------------------- | ------: | ------: | ------------ |
+| publish a 1 KB message, CPU                   |  5.4 µs |  1.2 µs | **4× less**  |
+| serve a 1 KB request, CPU                     | 16.2 µs |  9.7 µs | 40% less     |
+| serve a 1 KB request, p50 latency             | 1.93 ms | 0.50 ms | **4× lower** |
+| take a 448 KB message in, CPU                 |  490 µs |  274 µs | 44% less     |
+| publish 448 KB messages, peak memory          |  144 MB |   87 MB | **40% less** |
+| publish 448 KB messages, collections per 1000 |      20 |       4 | 5× fewer     |
+
+Against `amqplib@2.0.1` on the same machine and the same broker, and reproduced in a second round.
+[What was measured](#measured), and how.
+
 > This library is a from-scratch implementation of the interface designed by
 > [Michael Bridgen](https://github.com/squaremo) and the contributors to
 > [amqp-node/amqplib](https://github.com/amqp-node/amqplib). It is a drop-in replacement and
@@ -79,32 +91,32 @@ how, and what each column is.
 With RabbitMQ 4.2 on the same host, per message, in the process that takes the messages in
 (`deliver`), answers and acknowledges them (`turn`), or sends them (`publish`):
 
-| scenario     | library         | CPU µs | copied KB | socket writes | GC/1k | RSS MB | p50 ms |
-| ------------ | --------------- | -----: | --------: | ------------: | ----: | -----: | -----: |
-| deliver.100  | amqplib         |    3.3 |       0.2 |          0.00 |   0.8 |     92 |      — |
-| deliver.100  | @toa.io/amqplib |    2.2 |       0.1 |          0.00 |   0.3 |     89 |      — |
-| deliver.1k   | amqplib         |    5.8 |       1.1 |          0.00 |   1.2 |     91 |      — |
-| deliver.1k   | @toa.io/amqplib |    4.8 |       1.0 |          0.00 |   0.3 |     90 |      — |
-| deliver.32k  | amqplib         |   25.6 |      33.1 |          0.00 |   2.6 |    107 |      — |
-| deliver.32k  | @toa.io/amqplib |   22.7 |      32.0 |          0.00 |   1.6 |    123 |      — |
-| deliver.64k  | amqplib         |   57.2 |     127.8 |          0.00 |   3.7 |    132 |      — |
-| deliver.64k  | @toa.io/amqplib |   52.2 |      64.0 |          0.00 |   2.9 |    111 |      — |
-| deliver.96k  | amqplib         |   74.9 |     160.4 |          0.00 |   4.5 |    136 |      — |
-| deliver.96k  | @toa.io/amqplib |   71.6 |      96.0 |          0.00 |   5.0 |    130 |      — |
-| deliver.448k | amqplib         |  490.5 |    1534.8 |          0.00 |  56.0 |    148 |      — |
-| deliver.448k | @toa.io/amqplib |  273.9 |     448.0 |          0.00 |  20.0 |    121 |      — |
-| turn.1k      | amqplib         |   16.2 |       3.2 |          2.00 |   3.6 |     91 |   1.93 |
-| turn.1k      | @toa.io/amqplib |    9.7 |       2.0 |          0.41 |   0.6 |     92 |   0.50 |
-| turn.448k    | amqplib         |  724.9 |    1982.8 |          6.00 |  72.0 |    146 |   1.07 |
-| turn.448k    | @toa.io/amqplib |  575.8 |     896.0 |          1.00 |  36.0 |    101 |   1.06 |
-| publish.100  | amqplib         |    4.6 |       0.4 |          1.00 |   0.6 |     93 |      — |
-| publish.100  | @toa.io/amqplib |    0.8 |       0.1 |          0.02 |   0.1 |     90 |      — |
-| publish.1k   | amqplib         |    5.4 |       2.2 |          1.00 |   0.8 |     95 |      — |
-| publish.1k   | @toa.io/amqplib |    1.2 |       1.0 |          0.02 |   0.1 |     89 |      — |
-| publish.64k  | amqplib         |   62.3 |      64.2 |          2.00 |   3.1 |    101 |      — |
-| publish.64k  | @toa.io/amqplib |   39.1 |      64.0 |          0.67 |   1.4 |     87 |      — |
-| publish.448k | amqplib         |  360.6 |     448.2 |          5.00 |  20.0 |    122 |      — |
-| publish.448k | @toa.io/amqplib |  185.4 |     448.0 |          1.00 |   4.0 |     86 |      — |
+| scenario     | library         | CPU µs | copied KB | socket writes | GC/1k | RSS MB | peak MB | p50 ms |
+| ------------ | --------------- | -----: | --------: | ------------: | ----: | -----: | ------: | -----: |
+| deliver.100  | amqplib         |    3.3 |       0.2 |          0.00 |   0.8 |     92 |      93 |      — |
+| deliver.100  | @toa.io/amqplib |    2.2 |       0.1 |          0.00 |   0.3 |     89 |      89 |      — |
+| deliver.1k   | amqplib         |    5.8 |       1.1 |          0.00 |   1.2 |     91 |      92 |      — |
+| deliver.1k   | @toa.io/amqplib |    4.8 |       1.0 |          0.00 |   0.3 |     90 |      90 |      — |
+| deliver.32k  | amqplib         |   25.6 |      33.1 |          0.00 |   2.6 |    107 |     111 |      — |
+| deliver.32k  | @toa.io/amqplib |   22.7 |      32.0 |          0.00 |   1.6 |    123 |     142 |      — |
+| deliver.64k  | amqplib         |   57.2 |     127.8 |          0.00 |   3.7 |    132 |     144 |      — |
+| deliver.64k  | @toa.io/amqplib |   52.2 |      64.0 |          0.00 |   2.9 |    111 |     136 |      — |
+| deliver.96k  | amqplib         |   74.9 |     160.4 |          0.00 |   4.5 |    136 |     145 |      — |
+| deliver.96k  | @toa.io/amqplib |   71.6 |      96.0 |          0.00 |   5.0 |    130 |     151 |      — |
+| deliver.448k | amqplib         |  490.5 |    1534.8 |          0.00 |  56.0 |    148 |     151 |      — |
+| deliver.448k | @toa.io/amqplib |  273.9 |     448.0 |          0.00 |  20.0 |    121 |     147 |      — |
+| turn.1k      | amqplib         |   16.2 |       3.2 |          2.00 |   3.6 |     91 |      95 |   1.93 |
+| turn.1k      | @toa.io/amqplib |    9.7 |       2.0 |          0.41 |   0.6 |     92 |      92 |   0.50 |
+| turn.448k    | amqplib         |  724.9 |    1982.8 |          6.00 |  72.0 |    146 |     146 |   1.07 |
+| turn.448k    | @toa.io/amqplib |  575.8 |     896.0 |          1.00 |  36.0 |    101 |     138 |   1.06 |
+| publish.100  | amqplib         |    4.6 |       0.4 |          1.00 |   0.6 |     93 |      93 |      — |
+| publish.100  | @toa.io/amqplib |    0.8 |       0.1 |          0.02 |   0.1 |     90 |      90 |      — |
+| publish.1k   | amqplib         |    5.4 |       2.2 |          1.00 |   0.8 |     95 |      97 |      — |
+| publish.1k   | @toa.io/amqplib |    1.2 |       1.0 |          0.02 |   0.1 |     89 |      89 |      — |
+| publish.64k  | amqplib         |   62.3 |      64.2 |          2.00 |   3.1 |    101 |     105 |      — |
+| publish.64k  | @toa.io/amqplib |   39.1 |      64.0 |          0.67 |   1.4 |     87 |      88 |      — |
+| publish.448k | amqplib         |  360.6 |     448.2 |          5.00 |  20.0 |    122 |     144 |      — |
+| publish.448k | @toa.io/amqplib |  185.4 |     448.0 |          1.00 |   4.0 |     86 |      87 |      — |
 
 With no broker and no network, which leaves the library alone. From the bytes a socket reads to
 the consumer's callback:
