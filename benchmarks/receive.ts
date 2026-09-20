@@ -51,6 +51,7 @@ async function run(name: string, bytes: number): Promise<Cost> {
       await turn()
     }
 
+    // oxlint-disable-next-line no-unmodified-loop-condition -- the consumer counts them
     while (received < messages) await turn()
   }
 

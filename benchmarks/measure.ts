@@ -26,7 +26,7 @@ new PerformanceObserver(list => {
 
 export async function measure(operations: number, work: () => Promise<void>): Promise<Cost> {
   const collections = gc.count
-  const duration = gc.duration
+  const { duration } = gc
   const cpu = process.cpuUsage()
 
   await work()
@@ -50,7 +50,7 @@ export function option(name: string, fallback: string): string {
 }
 
 export function size(text: string): number {
-  const factor = text.endsWith('k') ? 1024 : text.endsWith('m') ? 1024 * 1024 : 1
+  const factors: Record<string, number> = { k: 1024, m: 1024 * 1024 }
 
-  return parseInt(text, 10) * factor
+  return parseInt(text, 10) * (factors[text.at(-1)!] ?? 1)
 }

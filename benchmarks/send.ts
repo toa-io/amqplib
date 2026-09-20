@@ -63,7 +63,7 @@ async function run(name: string, bytes: number): Promise<Result> {
 
   await pass(Math.ceil(messages / 10))
 
-  const writes = broker.writes
+  const { writes } = broker
   const cost = await measure(messages, () => pass(messages))
 
   return { ...cost, writes: (broker.writes - writes) / messages }
