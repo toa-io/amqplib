@@ -36,21 +36,13 @@ The callback interface is `@toa.io/amqplib/callback_api`. Both are documented by
 
 ## In place of amqplib
 
-Nothing in the code that uses it changes if the package is installed under the original's name:
-
-```sh
-npm install amqplib@npm:@toa.io/amqplib
-```
-
-`require('amqplib')`, `import amqp from 'amqplib'`, `import * as amqp from 'amqplib'` and
-`amqplib/callback_api` all resolve as before, and the types are declared under the names the
-original declares them by: `Options.Publish`, `Replies.AssertQueue`, `ConsumeMessage` and the rest.
-
 What is the same is checked rather than claimed. `compat/test` is the original's test suite at
 `v2.0.1` as it is, and it runs against this library on every change, as do the original's type
-tests. Two things of that suite are not run, and `compat/exemptions.mts` says why: the tests of
-the original's stream multiplexer, an internal module that has no counterpart here, and one test
-that waits for the original to write to a stream it has already ended.
+tests, which compile against the types declared here under the names the original declares them
+by: `Options.Publish`, `Replies.AssertQueue`, `ConsumeMessage` and the rest. Two things of that
+suite are not run, and `compat/exemptions.mts` says why: the tests of the original's stream
+multiplexer, an internal module that has no counterpart here, and one test that waits for the
+original to write to a stream it has already ended.
 
 What differs:
 
