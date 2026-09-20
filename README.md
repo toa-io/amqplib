@@ -4,6 +4,11 @@ An AMQP 0-9-1 client for RabbitMQ, for Node.js: the interface of
 [amqplib](https://github.com/amqp-node/amqplib), built for throughput and a small memory
 footprint.
 
+> This library is a from-scratch implementation of the interface designed by
+> [Michael Bridgen](https://github.com/squaremo) and the contributors to
+> [amqp-node/amqplib](https://github.com/amqp-node/amqplib). It is a drop-in replacement and
+> passes the original project's test suite.
+
 | per message, against a broker                 | amqplib |    this |              |
 | --------------------------------------------- | ------: | ------: | ------------ |
 | publish a 1 KB message, CPU                   |  5.4 µs |  1.2 µs | **4× less**  |
@@ -15,11 +20,6 @@ footprint.
 
 Against `amqplib@2.0.1` on the same machine and the same broker, and reproduced in a second round.
 [What was measured](#measured), and how.
-
-> This library is a from-scratch implementation of the interface designed by
-> [Michael Bridgen](https://github.com/squaremo) and the contributors to
-> [amqp-node/amqplib](https://github.com/amqp-node/amqplib). It is a drop-in replacement and
-> passes the original project's test suite.
 
 ```sh
 npm install @toa.io/amqplib
