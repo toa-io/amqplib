@@ -46,6 +46,13 @@ const ARENA = 64 * 1024
 /** How much of what was allocated is kept for writing to again, at most. */
 const POOL = 1024 * 1024
 
+/**
+ * How many bytes are taken within a turn before whoever writes is told to stop. Nothing goes to
+ * the socket until the turn ends, so without this a loop that publishes until told to stop
+ * would never be.
+ */
+const WRITE_LIMIT = 4 * 1024 * 1024
+
 /** How many messages a channel takes within a turn before it says it has had enough. */
 const DEFAULT_WRITE_HWM = 1024
 
@@ -148,6 +155,7 @@ export class Connection extends EventEmitter {
   private sealedLeases: Lease[] = []
   private readonly pool: Lease[] = []
   private pooled = 0
+  private sealedBytes = 0
   private scheduled = false
   private saturated = false
   private epoch = 0
@@ -964,7 +972,12 @@ export class Connection extends EventEmitter {
       record.written = 0
     }
 
-    if (++record.written <= record.highWaterMark && !this.saturated) return true
+    if (
+      ++record.written <= record.highWaterMark &&
+      !this.saturated &&
+      this.sealedBytes + this.tail - this.head < WRITE_LIMIT
+    )
+      return true
 
     if (!record.starved) {
       record.starved = true
@@ -1002,6 +1015,7 @@ export class Connection extends EventEmitter {
 
     if (this.tail > this.head) {
       lease.pending++
+      this.sealedBytes += this.tail - this.head
       this.sealed.push(this.arena.subarray(this.head, this.tail))
       this.sealedLeases.push(lease)
     } else if (lease.pending === 0) this.shelve(lease)
@@ -1078,6 +1092,7 @@ export class Connection extends EventEmitter {
       this.head = this.tail
       this.sealed.length = 0
       this.sealedLeases.length = 0
+      this.sealedBytes = 0
 
       return
     }
@@ -1101,6 +1116,7 @@ export class Connection extends EventEmitter {
       stream.uncork()
       this.sealed.length = 0
       this.sealedLeases.length = 0
+      this.sealedBytes = 0
     }
 
     this.head = this.tail
