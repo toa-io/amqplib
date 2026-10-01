@@ -1,0 +1,16 @@
+name: amqplib-soak
+
+services:
+  rabbitmq:
+    image: rabbitmq:4.2-alpine
+    ports:
+      - '5672:5672'
+      - '5671:5671'
+    volumes:
+      - ./rabbitmq/soak.conf:/etc/rabbitmq/conf.d/20-soak.conf:ro
+      - ./certs:/certs:ro
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'check_port_connectivity']
+      interval: 5s
+      timeout: 10s
+      retries: 30
