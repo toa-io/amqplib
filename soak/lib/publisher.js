@@ -1,7 +1,7 @@
 // A publisher process: one connection, a confirm channel per queue, and on each a stream of
 // messages of random size whose headers carry what the consumer needs to check them.
 const crypto = require('node:crypto');
-const amqp = require('amqplib');
+const amqp = require('../amqplib');
 const { Metrics } = require('./metrics');
 const { mulberry32, between, sizeFor } = require('./random');
 const { queueName, queueOptions, sha256, fatal, sleep } = require('./queues');

@@ -7,5 +7,12 @@ export default defineConfig({
   printWidth: 100,
   trailingComma: 'es5',
   arrowParens: 'avoid',
-  ignorePatterns: ['compat/test/**', 'compat/types/**', 'tools/*.json'],
+  ignorePatterns: [
+    'compat/test/**',
+    'compat/types/**',
+    'soak/bin/**',
+    'soak/lib/**',
+    'soak/test/**',
+    'tools/*.json',
+  ],
 })

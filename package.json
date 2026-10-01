@@ -53,6 +53,8 @@
     "test:compat": "node compat/run.mts",
     "benchmark": "npm run build && node benchmarks/run.ts",
     "rabbitmq": "docker run -d --rm --name amqplib-rabbitmq -p 5672:5672 rabbitmq:4.2-alpine",
+    "soak": "node soak/bin/soak.js",
+    "soak:broker": "soak/scripts/certs.sh && docker compose -f soak/docker-compose.yml up -d --wait",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix .",
     "fmt": "oxfmt .",

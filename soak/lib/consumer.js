@@ -2,7 +2,7 @@
 // the body is the length and bytes the publisher sent, in the order it sent them. Each body is
 // then kept for a while and checked again, since a body that is a view of a socket buffer could
 // be right on arrival and wrong once that buffer is reused.
-const amqp = require('amqplib');
+const amqp = require('../amqplib');
 const { Metrics } = require('./metrics');
 const { queueName, queueOptions, sha256, fatal, sleep } = require('./queues');
 
