@@ -12,7 +12,6 @@ import { after, describe, it } from 'node:test'
 import { setTimeout as sleep } from 'node:timers/promises'
 import tls from 'node:tls'
 import { connect, type ChannelModel, type ConnectOptions, type Message } from './index.ts'
-import { units } from './heartbeat.ts'
 
 const URL = process.env.URL ?? 'amqp://localhost'
 const broker = new globalThis.URL(URL)
@@ -48,8 +47,8 @@ class Proxy {
 
       client.on('data', chunk => this.silent || upstream.write(chunk))
       upstream.on('data', chunk => this.silent || client.write(chunk))
-      client.on('end', () => upstream.end())
-      upstream.on('end', () => client.end())
+      client.on('end', () => this.silent || upstream.end())
+      upstream.on('end', () => this.silent || client.end())
     })
   }
 
@@ -264,26 +263,26 @@ describe('failures', () => {
   })
 
   it('gives up on a connection that went quiet', async () => {
+    // in real seconds: RabbitMQ beats every half interval, whatever unit the client counts in
     const proxy = new Proxy()
+    const connection = await connect(await through(proxy, 'amqp', '?heartbeat=1'))
+    let quiet = false
 
-    units.ms = 100
+    connections.push(connection)
 
-    try {
-      const connection = await connect(await through(proxy, 'amqp', '?heartbeat=1'))
-      connections.push(connection)
+    const failed = new Promise<[Error, boolean]>(resolve =>
+      connection.once('error', error => resolve([error, quiet]))
+    )
 
-      const failed = new Promise<Error>(resolve => connection.once('error', resolve))
-      const started = Date.now()
+    // heartbeats keep it up past the two intervals it would give up after without them
+    await sleep(2500)
+    quiet = true
+    proxy.silent = true
 
-      // heartbeats keep it up for as long as they pass
-      await sleep(500)
-      proxy.silent = true
+    const [error, wentQuiet] = await failed
 
-      assert.match((await failed).message, /Heartbeat timeout/)
-      assert.equal(Date.now() - started >= 500, true)
-    } finally {
-      units.ms = 1000
-    }
+    assert.equal(wentQuiet, true)
+    assert.match(error.message, /Heartbeat timeout/)
   })
 
   it('refuses to connect where nobody listens, and where nobody answers', async () => {
