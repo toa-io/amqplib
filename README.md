@@ -49,7 +49,7 @@ The callback interface is `@toa.io/amqplib/callback_api`. Both are documented by
 ## In place of amqplib
 
 What is the same is checked rather than claimed. `compat/test` is the original's test suite at
-`v2.0.1` as it is, and it runs against this library on every change, as do the original's type
+`v2.2.0` as it is, and it runs against this library on every change, as do the original's type
 tests, which compile against the types declared here under the names the original declares them
 by: `Options.Publish`, `Replies.AssertQueue`, `ConsumeMessage` and the rest. Two things of that
 suite are not run, and `compat/exemptions.mts` says why: the tests of the original's stream
