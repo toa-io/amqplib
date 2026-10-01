@@ -19,7 +19,7 @@ npm run check
   the library assumes of sockets, of TLS and of the broker is checked on them, along with what
   happens when a connection is cut or goes quiet.
 - `test:compat` — the test suite of the original library, run against this one. `compat/test` is
-  the `test` directory of [amqp-node/amqplib](https://github.com/amqp-node/amqplib) at `v2.0.1`
+  the `test` directory of [amqp-node/amqplib](https://github.com/amqp-node/amqplib) at `v2.2.0`
   as it is, and is not to be edited: it is replaced as a whole when the original moves.
   `compat/lib` stands where the original's modules were. What is not run is listed in
   `compat/exemptions.mts`, each with its reason.
