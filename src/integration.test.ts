@@ -322,4 +322,62 @@ describe('failures', () => {
     assert.equal(typeof queue, 'string')
     await connection.close()
   })
+
+  it('fails what is asked of a connection that gave up recovering', { timeout: 5000 }, async () => {
+    const proxy = new Proxy()
+
+    const connection = await connect(await through(proxy), {
+      recovery: { initialDelay: 10, jitter: 0, maxRetries: 1 },
+    })
+
+    connections.push(connection)
+    connection.on('error', () => undefined)
+
+    const failed = new Promise(resolve => connection.once('reconnect-failed', resolve))
+
+    proxy.close()
+    await failed
+
+    await assert.rejects(connection.createChannel(), /ECONNREFUSED/)
+  })
+
+  it(
+    'gives up starting after its own retries, however many follow',
+    { timeout: 5000 },
+    async () => {
+      await assert.rejects(
+        connect('amqp://127.0.0.1:1', {
+          recovery: { initialDelay: 10, jitter: 0, initialMaxRetries: 1 },
+        }),
+        /ECONNREFUSED/
+      )
+    }
+  )
+
+  it('answers before the first connection when not asked to wait', async () => {
+    const refused = await connect('amqp://127.0.0.1:1', {
+      recovery: { waitForConnect: false, initialMaxRetries: 0 },
+    })
+
+    // listened to only after connect answered, and still in time
+    const failed = new Promise(resolve => refused.once('connect-failed', resolve))
+    const gaveUp = new Promise(resolve => refused.once('reconnect-failed', resolve))
+
+    assert.match(String(await failed), /ECONNREFUSED/)
+    assert.match(String(await gaveUp), /ECONNREFUSED/)
+
+    const connection = await connect(URL, { recovery: { waitForConnect: false } })
+
+    connections.push(connection)
+
+    const connected = new Promise(resolve => connection.once('connect', resolve))
+
+    await connected
+    assert.equal(await connection.waitForConnect(), connection)
+
+    const channel = await connection.createChannel()
+    const { queue } = await channel.assertQueue('', { exclusive: true })
+
+    assert.equal(typeof queue, 'string')
+  })
 })

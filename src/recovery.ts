@@ -14,10 +14,13 @@ export interface RecoveryOptions<Model = any> {
   factor?: number
   jitter?: number
   maxRetries?: number
+  initialMaxRetries?: number
   setup?:
     | ((model: Model) => unknown)
     | ((model: Model, done: (error?: Error) => void) => void)
     | null
+  waitForConnect?: boolean
+  calculateDelay?: ((attempt: number) => number) | null
 }
 
 type Recovery = Required<Omit<RecoveryOptions, 'enabled'>>
@@ -81,24 +84,32 @@ function toFiniteNumber(value: unknown, fallback: number): number {
   return Number.isFinite(n) ? n : fallback
 }
 
+function toRetryCount(value: unknown, fallback: number): number {
+  if (value === undefined || value === null) return fallback
+
+  const n = value === Infinity ? Infinity : toFiniteNumber(value, fallback)
+
+  return n < 0 ? 0 : n
+}
+
 function normaliseRecoveryOptions(recovery: true | RecoveryOptions | null | undefined): Recovery {
   const source = recovery === true ? {} : (recovery ?? {})
   const initialDelay = Math.max(
     0,
     toFiniteNumber(source.initialDelay, DEFAULT_RECOVERY.initialDelay)
   )
-  const maxRetries =
-    source.maxRetries === undefined || source.maxRetries === null
-      ? Infinity
-      : toFiniteNumber(source.maxRetries, Infinity)
+  const maxRetries = toRetryCount(source.maxRetries, Infinity)
 
   return {
     initialDelay,
     maxDelay: Math.max(initialDelay, toFiniteNumber(source.maxDelay, DEFAULT_RECOVERY.maxDelay)),
     factor: Math.max(1, toFiniteNumber(source.factor, DEFAULT_RECOVERY.factor)),
     jitter: Math.min(1, Math.max(0, toFiniteNumber(source.jitter, DEFAULT_RECOVERY.jitter))),
-    maxRetries: maxRetries < 0 ? 0 : maxRetries,
+    maxRetries,
+    initialMaxRetries: toRetryCount(source.initialMaxRetries, maxRetries),
     setup: typeof source.setup === 'function' ? source.setup : null,
+    waitForConnect: source.waitForConnect !== false,
+    calculateDelay: typeof source.calculateDelay === 'function' ? source.calculateDelay : null,
   }
 }
 
@@ -108,12 +119,30 @@ function toError(error: unknown, fallbackMessage: string): Error {
   return new Error(error ? String(error) : fallbackMessage)
 }
 
-function calculateDelay(recovery: Recovery, attempt: number): number {
-  const base = Math.min(recovery.maxDelay, recovery.initialDelay * recovery.factor ** (attempt - 1))
+/**
+ * The base is capped at `maxDelay / (1 + jitter)`, so that the largest offset lands on `maxDelay`:
+ * capping the sum instead would put every positive draw on `maxDelay` once the base saturates.
+ */
+function builtinDelay(recovery: Recovery, attempt: number): number {
+  const cap = recovery.maxDelay / (1 + recovery.jitter)
+  const base = Math.min(cap, recovery.initialDelay * recovery.factor ** (attempt - 1))
   const jitter = base * recovery.jitter
   const offset = jitter > 0 ? Math.random() * jitter * 2 - jitter : 0
 
   return Math.max(0, Math.round(base + offset))
+}
+
+/** Throws when a custom strategy throws or returns anything but a finite, non-negative number. */
+function calculateDelay(recovery: Recovery, attempt: number): number {
+  if (recovery.calculateDelay === null) return builtinDelay(recovery, attempt)
+
+  const delay: unknown = recovery.calculateDelay(attempt)
+
+  if (typeof delay === 'number' && Number.isFinite(delay) && delay >= 0) return Math.round(delay)
+
+  throw new Error(
+    `calculateDelay must return a finite, non-negative number of milliseconds (got ${String(delay)})`
+  )
 }
 
 // oxlint-disable promise/no-callback-in-promise -- this is where promises meet callbacks
@@ -161,6 +190,9 @@ class RecoveringCore extends EventEmitter {
   private waiters: Waiter[] = []
   private connecting = false
   private stopped = false
+  /** Why recovery gave up, for what is asked of the connection afterwards. */
+  private failure: Error | null = null
+  private connectedOnce = false
   private timer: NodeJS.Timeout | null = null
   private attempt = 0
   private initialReady = false
@@ -184,7 +216,11 @@ class RecoveringCore extends EventEmitter {
       this.rejectInitial = reject
     })
 
-    this.connect()
+    // awaited only by those who wait for the first connection
+    this.initialWait.catch(() => undefined)
+
+    // the first attempt waits for whoever got the model first to listen to it
+    setImmediate(() => this.connect())
   }
 
   public waitForConnect(): Promise<void> {
@@ -237,7 +273,7 @@ class RecoveringCore extends EventEmitter {
   private waitForConnection(): Promise<unknown> {
     if (this.model !== null) return Promise.resolve(this.model)
 
-    if (this.stopped) return Promise.reject(new Error('Connection closed'))
+    if (this.stopped) return Promise.reject(this.failure ?? new Error('Connection closed'))
 
     return new Promise((resolve, reject) => {
       this.waiters.push({ resolve, reject })
@@ -294,7 +330,7 @@ class RecoveringCore extends EventEmitter {
 
     try {
       model = await this.openModel()
-      await runSetup(this.recovery.setup, model)
+      if (!this.stopped) await runSetup(this.recovery.setup, model)
 
       if (this.stopped) {
         await this.closeModelNoThrow(model)
@@ -304,6 +340,7 @@ class RecoveringCore extends EventEmitter {
 
       this.model = model
       this.attempt = 0
+      this.connectedOnce = true
       this.bindModel(model)
 
       if (!this.initialReady) {
@@ -329,23 +366,35 @@ class RecoveringCore extends EventEmitter {
   private scheduleReconnect(error: Error): void {
     if (this.stopped || this.timer !== null) return
 
-    if (this.attempt >= this.recovery.maxRetries) {
-      this.rejectInitialConnection(error)
-      this.rejectPendingWaiters(error)
-      this.emit('reconnect-failed', error)
+    const retries = this.connectedOnce ? this.recovery.maxRetries : this.recovery.initialMaxRetries
 
-      return
+    if (this.attempt >= retries) return this.abandon(error)
+
+    const attempt = this.attempt + 1
+    let delay: number
+
+    try {
+      delay = calculateDelay(this.recovery, attempt)
+    } catch (err) {
+      return this.abandon(toError(err, 'calculateDelay failed'))
     }
 
-    const attempt = ++this.attempt
-    const delay = calculateDelay(this.recovery, attempt)
-
+    this.attempt = attempt
     this.emit('reconnect-scheduled', { attempt, delay, error })
 
     this.timer = setTimeout(() => {
       this.timer = null
       this.connect()
     }, delay)
+  }
+
+  /** Recovery is over for good, and what waits for a connection is told why. */
+  private abandon(error: Error): void {
+    this.stopped = true
+    this.failure = error
+    this.rejectInitialConnection(error)
+    this.rejectPendingWaiters(error)
+    this.emit('reconnect-failed', error)
   }
 
   private closeModelNoThrow(model: unknown): Promise<void> {
@@ -431,7 +480,7 @@ export class RecoveringCallbackModel extends EventEmitter {
     wire(this.core, this)
   }
 
-  public waitForConnect(cb?: unknown): this {
+  public waitForConnect(cb?: (error: any, connection: this) => void): this {
     makeCallback(
       this.core.waitForConnect().then(() => this),
       cb
@@ -479,11 +528,19 @@ export class RecoveringCallbackModel extends EventEmitter {
   }
 }
 
+function waitsForConnect(recovery: true | RecoveryOptions | null | undefined): boolean {
+  return normaliseRecoveryOptions(recovery).waitForConnect
+}
+
 export function connectWithRecoveryPromise(
   openModel: () => Promise<unknown>,
   recovery?: true | RecoveryOptions | null
 ): Promise<RecoveringPromiseModel> {
-  return new RecoveringPromiseModel(openModel, recovery).waitForConnect()
+  const recovering = new RecoveringPromiseModel(openModel, recovery)
+
+  if (!waitsForConnect(recovery)) return Promise.resolve(recovering)
+
+  return recovering.waitForConnect()
 }
 
 export function connectWithRecoveryCallback(
@@ -491,5 +548,12 @@ export function connectWithRecoveryCallback(
   recovery: true | RecoveryOptions | null | undefined,
   cb?: unknown
 ): RecoveringCallbackModel {
-  return new RecoveringCallbackModel(openModel, recovery).waitForConnect(cb)
+  const recovering = new RecoveringCallbackModel(openModel, recovery)
+
+  if (waitsForConnect(recovery))
+    return recovering.waitForConnect(cb as Parameters<RecoveringCallbackModel['waitForConnect']>[0])
+
+  if (typeof cb === 'function') process.nextTick(cb, null, recovering)
+
+  return recovering
 }
