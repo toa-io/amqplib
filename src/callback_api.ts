@@ -24,7 +24,7 @@ export function connect(url: string | UrlObject, callback: Opened<CallbackModel>
 export function connect(
   url: string | UrlObject,
   options: ConnectOptions & { recovery: true | RecoveryOptions },
-  callback: Opened<RecoveringCallbackModel>
+  callback?: Opened<RecoveringCallbackModel>
 ): RecoveringCallbackModel
 export function connect(
   url: string | UrlObject,
