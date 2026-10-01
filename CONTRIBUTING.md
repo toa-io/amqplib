@@ -41,6 +41,13 @@ npm run benchmark             # with a broker, both libraries, scenario by scena
 
 `benchmarks/readme.md` says what each reports and how to read it.
 
+## Soak
+
+`soak/` publishes messages of random size over a plain socket, TLS and a proxy that cuts what the
+broker sends into random pieces, and checks every delivery for loss, reordering and corruption, on
+arrival and again after it was held. It runs on every pull request into `release`, and by hand from
+the Actions tab or with `npm run soak`; `soak/readme.md` says how.
+
 Branch off `dev`, and open a pull request back into it. A pull request needs a
 passing `check` run, an approving review, and every review thread resolved.
 

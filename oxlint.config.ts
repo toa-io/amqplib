@@ -17,6 +17,9 @@ export default defineConfig({
     'dist/**',
     'compat/test/**',
     'compat/types/**',
+    'soak/bin/**',
+    'soak/lib/**',
+    'soak/test/**',
     'src/defs.ts',
   ],
   rules: {
