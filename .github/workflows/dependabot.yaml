@@ -54,4 +54,4 @@ jobs:
       # leaves both of these refusing to merge.
       - name: Merge once check passes
         if: steps.classify.outputs.minor == 'true'
-        run: gh pr merge "$PR" --squash --auto || gh pr merge "$PR" --squash
+        run: gh pr merge "$PR" --rebase --auto || gh pr merge "$PR" --rebase
